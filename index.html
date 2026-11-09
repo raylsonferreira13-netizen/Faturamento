@@ -2274,4 +2274,34 @@ function init() {
   const params = new URLSearchParams(location.search);
   const src = params.get('src');
   if (src) {
-    fetch(src).
+    fetch(src).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(b => importar(new File([b], decodeURIComponent(src.split('/').pop()))))
+      .then(() => { if (params.has('relatorio') && data) { montarRelatorio(); document.body.classList.add('imprimindo-relatorio'); } })
+      .catch(e => toast('Não foi possível carregar ' + src + ': ' + e.message));
+  }
+
+  // Atualização automática: ao abrir, a cada 10 minutos e ao voltar para o app (se passou do intervalo)
+  $('#sincronizar').addEventListener('click', () => sincronizar({ manual: true }));
+  $('#atualizarAgora').addEventListener('click', () => sincronizar({ manual: true }));
+  $('#salvarFonte').addEventListener('click', () => {
+    const v = $('#fonteUrl').value.trim();
+    store(FONTE_KEY, v);
+    toast(v ? 'Link salvo. Buscando a planilha…' : 'Atualização automática desligada. Use a importação manual.');
+    estadoPlanilha();
+    if (v) sincronizar({ manual: true });
+  });
+  const talvezSincronizar = () => { if (document.visibilityState === 'visible' && Date.now() - sync.ultima > INTERVALO_SYNC) sincronizar(); };
+  document.addEventListener('visibilitychange', talvezSincronizar);
+  setInterval(talvezSincronizar, 60 * 1000);
+  if (!src) sincronizar();
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
