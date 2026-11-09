@@ -57,7 +57,7 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0b0b0c; --surface: #17181b; --surface-2: #1f2024; --ink: #f4f4f5; --ink-2: #c4c4cc; --muted: #8b8b93;
-    --grid: #26272b; --axis: #3a3b40; --border: rgba(255, 255, 255, 0.08); --head: #000000; --head-ink: #ffffff; --shadow: none;
+    --grid: #26272b; --axis: #3a3b40; --border: rgba(255, 255, 255, 0.08); --head: #000000; --head-ink: #ffffff; --shadow: none; --sel-bg: #f4f4f5; --sel-ink: #111214;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70;
     --c-rec: #199e70; --c-fat: #3987e5; --c-med: #c98500; --c-saldo: #34353a;
   }
@@ -65,7 +65,7 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0b0b0c; --surface: #17181b; --surface-2: #1f2024; --ink: #f4f4f5; --ink-2: #c4c4cc; --muted: #8b8b93;
-  --grid: #26272b; --axis: #3a3b40; --border: rgba(255, 255, 255, 0.08); --head: #000000; --head-ink: #ffffff; --shadow: none;
+  --grid: #26272b; --axis: #3a3b40; --border: rgba(255, 255, 255, 0.08); --head: #000000; --head-ink: #ffffff; --shadow: none; --sel-bg: #f4f4f5; --sel-ink: #111214;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70;
   --c-rec: #199e70; --c-fat: #3987e5; --c-med: #c98500; --c-saldo: #34353a;
 }
@@ -133,6 +133,73 @@ svg { flex: none; }
 .menu-btn { display: none; border: 0; background: none; color: #fff; padding: 6px; cursor: pointer; }
 .menu-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
+/* navegação: voltar + trilha */
+.voltar {
+  display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .04);
+  color: #fff; border-radius: 9px; padding: 7px 12px 7px 8px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; flex: none;
+}
+.voltar:hover { background: rgba(242, 140, 40, .16); border-color: var(--laranja); }
+.voltar svg { width: 18px; height: 18px; fill: none; stroke: var(--laranja); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.migalha { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.migalha a { color: var(--side-ink-2); text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+.migalha a:hover { color: var(--laranja); text-decoration: underline; }
+.migalha .sep { color: var(--side-grupo); }
+.ponto-novo { width: 9px; height: 9px; border-radius: 50%; background: var(--laranja); box-shadow: 0 0 0 3px rgba(242, 140, 40, .25); margin-left: auto; flex: none; }
+.menu-btn { position: relative; }
+.menu-btn .ponto-novo { position: absolute; top: 4px; right: 2px; margin: 0; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.config-grid .card { margin-bottom: 18px; }
+.contagem { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: 6px; }
+/* filtro de período (visão geral) */
+.controles { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.periodo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.periodo select { font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink); min-height: 38px; }
+.periodo select.ativo { border-color: var(--laranja); box-shadow: 0 0 0 2px rgba(242, 140, 40, .25); }
+
+/* busca rápida no topo */
+.busca { position: relative; display: flex; align-items: center; }
+.busca input {
+  width: 240px; font: inherit; font-size: 14px; padding: 8px 12px 8px 34px; border-radius: 9px; min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .06); color: #fff;
+}
+.busca input::placeholder { color: var(--side-ink-2); }
+.busca input:focus { outline: none; border-color: var(--laranja); background: rgba(255, 255, 255, .1); }
+.busca-btn { position: absolute; left: 6px; border: 0; background: none; color: var(--side-ink-2); padding: 4px; display: flex; pointer-events: none; }
+.busca-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.busca-lista {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 340px; max-width: calc(100vw - 24px); z-index: 45; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .25); padding: 6px; max-height: 60vh; overflow-y: auto;
+}
+.busca-lista button {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: var(--ink); text-align: left;
+  padding: 8px 10px; border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.busca-lista button:hover, .busca-lista button.sel { background: var(--surface-2); }
+.busca-lista .tipo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #111214; background: var(--laranja); border-radius: 6px; padding: 1px 6px; flex: none; }
+.busca-lista .tipo.bm { background: var(--s1); color: #fff; }
+.busca-lista .tipo.pag { background: var(--neutro); color: #111214; }
+.busca-lista small { color: var(--muted); margin-left: auto; white-space: nowrap; }
+.busca-lista .vazio-b { padding: 10px; color: var(--muted); font-size: 14px; }
+
+.acoes-cfg { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn.perigo { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
+.btn.perigo:hover { background: color-mix(in srgb, var(--critical) 10%, transparent); }
+/* prazos e previsões: seção discreta, recolhida */
+.card.prazos { padding: 0; box-shadow: none; background: transparent; border-style: dashed; }
+.prazos summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 14px; color: var(--ink-2); }
+.prazos summary::-webkit-details-marker { display: none; }
+.prazos summary::before { content: "›"; font-weight: 700; color: var(--muted); transition: transform .2s; }
+.prazos[open] summary::before { transform: rotate(90deg); }
+.prazos summary b { color: var(--ink); font-weight: 700; }
+.prazos summary .resumo { color: var(--muted); font-size: 13px; }
+.prazos .corpo { padding: 0 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.prazos h4 { margin: 4px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.prazos ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.prazos li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--grid); }
+.prazos li span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.prazos .dias { color: var(--muted); }
+.prazos .dias.longo { color: var(--serious); font-weight: 700; }
+.prazos .nota { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
 .pilulas { display: flex; gap: 8px; }
 .pilula {
   display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #111214; border-radius: 999px;
@@ -181,14 +248,14 @@ main { width: 100%; max-width: 1320px; margin: 0 auto; padding: 18px 24px 32px; 
 
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; background: var(--surface); }
 .seg button { border: 0; background: none; padding: 7px 16px; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-2); cursor: pointer; border-radius: 999px; transition: background .2s, color .2s; }
-.seg button[aria-pressed="true"] { background: var(--side); color: #fff; box-shadow: inset 0 -2px 0 var(--laranja); }
+.seg button[aria-pressed="true"] { background: var(--sel-bg, var(--side)); color: var(--sel-ink, #fff); box-shadow: inset 0 -2px 0 var(--laranja); }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .chips button {
   border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 999px;
   padding: 7px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
 }
-.chips button[aria-pressed="true"] { background: var(--side); color: #fff; border-color: var(--side); box-shadow: inset 0 -2px 0 var(--laranja); }
+.chips button[aria-pressed="true"] { background: var(--sel-bg, var(--side)); color: var(--sel-ink, #fff); border-color: var(--sel-bg, var(--side)); box-shadow: inset 0 -2px 0 var(--laranja); }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
@@ -318,6 +385,17 @@ tr.clicavel { cursor: pointer; }
   .topo { padding-left: 12px; padding-right: 12px; gap: 8px; }
   .topo h2 { font-size: 17px; }
   .topo .btn span, .pilula span { display: none; }
+  .config-grid { grid-template-columns: 1fr; gap: 0; }
+  .prazos .corpo { grid-template-columns: 1fr; gap: 10px; }
+  .prazos summary { flex-wrap: wrap; row-gap: 2px; }
+  .prazos summary b { white-space: nowrap; }
+  .prazos summary .resumo { flex-basis: 100%; padding-left: 18px; }
+  /* busca vira um ícone; ao tocar, o campo abre embaixo do topo */
+  .busca input { display: none; }
+  .busca-btn { position: static; pointer-events: auto; color: #fff; padding: 8px; cursor: pointer; }
+  .busca.aberta input { display: block; position: fixed; left: 12px; right: 12px; top: calc(var(--topo-h, 60px) + 8px); width: auto; z-index: 46; background: #1b1c1f; }
+  .busca.aberta .busca-lista { position: fixed; left: 12px; right: 12px; top: calc(var(--topo-h, 60px) + 56px); width: auto; max-width: none; }
+  .migalha > span:first-child:not(:last-child), .migalha > span:first-child + .sep { display: none; }
   .pilula { padding: 4px 10px 4px 4px; }
   main { padding: 14px 12px 28px; }
 }
@@ -329,7 +407,8 @@ tr.clicavel { cursor: pointer; }
   .card { padding: 14px; }
   .filters label { flex: 1 1 140px; }
   .obra-titulo { font-size: 20px; }
-  .pilulas .pilula:nth-child(n+2) { display: none; }
+  .voltar span { display: none; }
+  .voltar { padding: 7px; }
 }
 
 /* ---------- impressão / PDF: fundo branco, cores mantidas ---------- */
@@ -344,7 +423,8 @@ tr.clicavel { cursor: pointer; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   *, *::before, .anim *, .tile .bar i { animation: none !important; transition: none !important; }
   body { background: #fff; font-size: 12px; }
-  .side, .veu, .topo-acoes, .menu-btn, .no-print-ctrl, .so-tela, .legend button[aria-pressed="false"], .tip, .toast, .menu, [data-r="matrizCard"] { display: none !important; }
+  .prazos:not([open]),
+  .side, .veu, .topo-acoes, .menu-btn, .voltar, .migalha, .no-print-ctrl, .so-tela, .legend button[aria-pressed="false"], .tip, .toast, .menu, [data-r="matrizCard"] { display: none !important; }
   .layout { display: block; min-height: 0; }
   .topo { position: static; border-radius: 10px; margin-bottom: 10px; }
   .print-only { display: block; }
@@ -387,13 +467,9 @@ tr.clicavel { cursor: pointer; }
         Medições
       </button>
       <div class="grupo">Sistema</div>
-      <button class="item" data-tab="alertas">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
-        Avisos <span id="nAlertas" class="badge" hidden></span>
-      </button>
-      <button class="item" id="tema" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>
-        <span id="temaTxt">Tela escura</span>
+      <button class="item" data-tab="config">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        Configurações <i class="ponto-novo" id="pontoNovo" title="Há avisos novos" hidden></i>
       </button>
     </nav>
 
@@ -413,13 +489,24 @@ tr.clicavel { cursor: pointer; }
     <header class="topo">
       <button class="menu-btn" id="menuBtn" type="button" aria-label="Abrir menu">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        <i class="ponto-novo" id="pontoNovoMenu" hidden></i>
+      </button>
+      <button class="voltar" id="voltar" type="button" aria-label="Voltar" title="Voltar" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>Voltar</span>
       </button>
       <div class="topo-tit">
-        <span class="migalha">Controle de Faturamento</span>
+        <nav class="migalha" id="trilha" aria-label="Caminho"></nav>
         <h2 id="tituloPagina">Visão geral</h2>
       </div>
       <div class="topo-acoes">
-        <div class="pilulas" id="pilulas"></div>
+        <div class="busca" id="busca">
+          <button class="busca-btn" id="buscaBtn" type="button" aria-label="Buscar obra ou BM">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          </button>
+          <input id="buscaInput" type="search" placeholder="Buscar obra ou BM…" autocomplete="off" aria-label="Buscar obra ou BM" aria-controls="buscaLista">
+          <div class="busca-lista" id="buscaLista" role="listbox" hidden></div>
+        </div>
         <div class="menu-wrap">
           <button class="btn" id="pdf" type="button" aria-haspopup="true" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 14h6M9 18h6"/></svg>
@@ -446,12 +533,18 @@ tr.clicavel { cursor: pointer; }
 
       <section id="tab-geral" class="tab" hidden>
         <div class="row-between no-print-ctrl">
-          <div class="seg" data-r="modo" role="group" aria-label="Base dos valores">
-            <button data-modo="total" aria-pressed="true">Contrato 100%</button>
-            <button data-modo="cosampa" aria-pressed="false">Parte COSAMPA</button>
+          <div class="controles">
+            <div class="seg" data-r="modo" role="group" aria-label="Base dos valores">
+              <button data-modo="total" aria-pressed="true">Contrato 100%</button>
+              <button data-modo="cosampa" aria-pressed="false">Parte COSAMPA</button>
+            </div>
+            <label class="periodo">Posição
+              <select data-r="ate" aria-label="Posição até o mês"></select>
+            </label>
           </div>
           <p class="muted small" data-r="nota"></p>
         </div>
+        <p class="muted small print-only" data-r="notaPrint"></p>
         <div class="tiles" data-r="tiles"></div>
         <div class="grid2">
           <div class="card">
@@ -468,6 +561,7 @@ tr.clicavel { cursor: pointer; }
         <div class="card flush">
           <div class="table-wrap"><table data-r="tabela" class="tabela-obras"></table></div>
         </div>
+        <details class="card prazos" data-r="prazos"></details>
       </section>
 
       <section id="tab-obra" class="tab" hidden>
@@ -485,6 +579,7 @@ tr.clicavel { cursor: pointer; }
           <p class="muted small">Soma acumulada da matriz por BM (com reajuste, aditivo, FD e desconto de downpayment; sem o downpayment), comparada ao contrato. Pode diferir um pouco do resumo da aba, que soma FD e desconto também de BMs ainda não recebidos.</p>
           <div data-r="acum" class="chart"></div>
         </div>
+        <details class="card prazos" data-r="prazos"></details>
         <div class="card flush" data-r="matrizCard">
           <h3 class="pad">Matriz por BM</h3>
           <div class="table-wrap"><table data-r="matriz" class="matrix"></table></div>
@@ -500,7 +595,8 @@ tr.clicavel { cursor: pointer; }
           <label>Até<input id="fAte" type="month"></label>
           <label class="grow">Buscar<input id="fBusca" type="search" placeholder="BM, mês…"></label>
           <button class="btn" id="limpar">Limpar</button>
-          <button class="btn" id="csv">Exportar CSV</button>
+          <button class="btn" id="xlsx">Exportar Excel</button>
+          <button class="btn" id="csv">CSV</button>
         </div>
         <p class="muted small print-only" id="filtroTexto"></p>
         <div class="tiles compact" id="tilesFiltro"></div>
@@ -509,10 +605,29 @@ tr.clicavel { cursor: pointer; }
         </div>
       </section>
 
-      <section id="tab-alertas" class="tab" hidden>
+      <section id="tab-config" class="tab" hidden>
+        <div class="config-grid">
+          <div class="card">
+            <h3>Aparência</h3>
+            <p class="muted small">Cor de fundo da área de conteúdo. Fica salva neste aparelho.</p>
+            <div class="seg" id="temaSeg" role="group" aria-label="Tema">
+              <button data-tema="light" aria-pressed="true">Tela clara</button>
+              <button data-tema="dark" aria-pressed="false">Tela escura</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Planilha</h3>
+            <p class="muted small" id="cfgPlanilha"></p>
+            <div class="acoes-cfg">
+              <label class="btn primary"><input id="arquivo3" type="file" accept=".xlsx" hidden>Importar planilha atualizada</label>
+              <button class="btn perigo" id="apagar" type="button">Apagar dados deste aparelho</button>
+            </div>
+            <p class="muted small" style="margin-top:10px">Apagar remove só a cópia guardada neste navegador; a planilha original não é afetada.</p>
+          </div>
+        </div>
         <div class="card">
-          <h3>Pontos de atenção na planilha</h3>
-          <p class="muted small">O app não altera a planilha. Corrija na origem e importe de novo.</p>
+          <h3>Avisos da planilha <span class="contagem" id="cfgContagem"></span></h3>
+          <p class="muted small">Pontos de atenção encontrados na última importação. O app não altera a planilha: corrija na origem e importe de novo.</p>
           <div id="listaAlertas"></div>
         </div>
       </section>
@@ -632,12 +747,106 @@ const XLSX_MIN = (() => {
         if (row > maxRow) maxRow = row;
         if (col > maxCol) maxCol = col;
       }
-      sheets.push({ name: s.getAttribute('name'), state: s.getAttribute('state') || 'visible', grid, maxRow, maxCol });
+      // Comentários das células (ex.: "PREVISTO" no cabeçalho de um BM)
+      const comments = {};
+      const relTxt = await text(path.replace(/worksheets\/([^/]+)$/, 'worksheets/_rels/$1.rels'));
+      if (relTxt) {
+        for (const r of xml(relTxt).getElementsByTagName('Relationship')) {
+          if (!/\/comments$/.test(r.getAttribute('Type') || '')) continue;
+          const alvo = new URL(r.getAttribute('Target'), 'http://x/' + path).pathname.slice(1);
+          const cTxt = await text(alvo);
+          if (!cTxt) continue;
+          for (const c of xml(cTxt).getElementsByTagName('comment')) {
+            // Comentário encadeado vem com um aviso do Excel antes do texto real ("Comentário:" / "Comment:")
+            const partes = (c.textContent || '').split(/Coment[aá]rio:|Comment:/);
+            comments[c.getAttribute('ref')] = partes[partes.length - 1].trim();
+          }
+        }
+      }
+      sheets.push({ name: s.getAttribute('name'), state: s.getAttribute('state') || 'visible', grid, maxRow, maxCol, comments });
     }
     return sheets;
   }
 
-  return { read };
+  // ---------- Escrita (.xlsx simples, sem compressão) ----------
+  const CRC = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return bytes => { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = t[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  })();
+  function zip(files) {
+    const enc = new TextEncoder(), partes = [], central = [];
+    let off = 0;
+    for (const [nome, texto] of files) {
+      const n = enc.encode(nome), d = enc.encode(texto), crc = CRC(d);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);
+      h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, n.length, true);
+      partes.push(h.buffer, n, d);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+      c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, n.length, true);
+      c.setUint32(42, off, true);
+      central.push(c.buffer, n);
+      off += 30 + n.length + d.length;
+    }
+    const tam = central.reduce((s, p) => s + (p.byteLength ?? p.length), 0);
+    const e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+    e.setUint32(12, tam, true); e.setUint32(16, off, true);
+    return new Blob([...partes, ...central, e.buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  const xe = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const col = i => { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+
+  // abas: [{ nome, larguras: [..], linhas: [[celula,...]], filtro: bool, congelar: bool }]
+  // celula: string | number | { v, s } | { f: 'SUM(...)', s }; s = estilo: 1 cabeçalho, 2 moeda, 3 moeda negrito, 4 negrito
+  function write(abas) {
+    const sheets = abas.map((a, si) => {
+      const rows = a.linhas.map((ln, r) => `<row r="${r + 1}">` + ln.map((c, ci) => {
+        if (c == null || c === '') return '';
+        const ref = col(ci) + (r + 1);
+        const o = typeof c === 'object' ? c : { v: c };
+        const s = o.s ? ` s="${o.s}"` : '';
+        if (o.f) return `<c r="${ref}"${s}><f>${xe(o.f)}</f></c>`;
+        if (typeof o.v === 'number' && isFinite(o.v)) return `<c r="${ref}"${s}><v>${o.v}</v></c>`;
+        return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${xe(o.v)}</t></is></c>`;
+      }).join('') + '</row>').join('');
+      const ncol = Math.max(...a.linhas.map(l => l.length));
+      const cols = a.larguras ? '<cols>' + a.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>' : '';
+      const pane = a.congelar ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' : '';
+      const af = a.filtro ? `<autoFilter ref="A1:${col(ncol - 1)}${a.filtroAte || a.linhas.length}"/>` : '';
+      return { nome: a.nome, af: a.filtro ? `'${a.nome.replace(/'/g, "''")}'!$A$1:$${col(ncol - 1)}$${a.filtroAte || a.linhas.length}` : null, si,
+        xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${pane}${cols}<sheetData>${rows}</sheetData>${af}</worksheet>` };
+    });
+    const files = [
+      ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        sheets.map(s => `<Override PartName="/xl/worksheets/sheet${s.si + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') + '</Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+        sheets.map(s => `<sheet name="${xe(s.nome)}" sheetId="${s.si + 1}" r:id="rId${s.si + 1}"/>`).join('') + '</sheets>' +
+        (sheets.some(s => s.af) ? '<definedNames>' + sheets.filter(s => s.af).map(s => `<definedName name="_xlnm._FilterDatabase" localSheetId="${s.si}" hidden="1">${xe(s.af)}</definedName>`).join('') + '</definedNames>' : '') + '</workbook>'],
+      ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        sheets.map(s => `<Relationship Id="rId${s.si + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${s.si + 1}.xml"/>`).join('') +
+        `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+      ['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;R$&quot; #,##0.00;[Red]-&quot;R$&quot; #,##0.00"/></numFmts>' +
+        '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF111214"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+        '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top style="medium"><color rgb="FFF28C28"/></top><bottom/><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+        '<xf numFmtId="164" fontId="2" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>' +
+        '<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/></cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+      ...sheets.map(s => [`xl/worksheets/sheet${s.si + 1}.xml`, s.xml])
+    ];
+    return zip(files);
+  }
+
+  return { read, write };
 })();
 </script>
 <script>
@@ -774,8 +983,9 @@ const MODEL = (() => {
       if (cs.length >= 3) { bmRow = r; cols = cs; }
     }
     const matrix = { cols: [], rows: {} };
+    const letra = n => { let s = ''; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
     if (bmRow != null) {
-      matrix.cols = cols.map(c => ({ label: String(at(bmRow, c)).trim(), bm: bmNum(at(bmRow, c)) }));
+      matrix.cols = cols.map(c => ({ label: String(at(bmRow, c)).trim(), bm: bmNum(at(bmRow, c)), nota: (sheet.comments || {})[letra(c) + bmRow] || '' }));
       for (let r = bmRow + 1; r < hr; r++) {
         const key = MATRIX_ROWS[norm(at(r, 1))];
         if (!key) continue;
@@ -802,6 +1012,20 @@ const MODEL = (() => {
       return { label: c.label, bm: c.bm, mes: mes ? mes.label : '', ym: mes ? mes.ym : null, med, fat, rec, prev };
     }).filter(s => s.bm !== 0); // Downpayment é adiantamento: o resumo da aba também não o soma ao medido.
 
+    // Previsões de medição: linha "Previsão medição" da matriz, ou BM com comentário "previsto/previsão"
+    // que ainda não foi faturado nem recebido.
+    const previsoes = [];
+    matrix.cols.forEach((c, i) => {
+      const pv = R('previsao')[i];
+      const mes = mesPorBm[c.bm];
+      if (pv) { previsoes.push({ bm: c.label, mes: mes ? mes.label : '', v: pv, fonte: 'linha "Previsão medição"' }); return; }
+      if (!/previs/i.test(c.nota)) return;
+      const sts = medicoes.filter(m => m.bms.includes(c.bm)).map(m => m.status);
+      if (sts.some(s => s === 'Recebida' || s === 'Faturada')) return;
+      const v = num(R('medido')[i]) + num(R('reajuste')[i]);
+      if (v) previsoes.push({ bm: c.label, mes: mes ? mes.label : '', v, fonte: `comentário: "${c.nota}"` });
+    });
+
     // Alertas de consistência
     const refErros = Object.values(g).reduce((n, row) => n + Object.values(row).filter(v => v === '#REF!').length, 0);
     if (refErros) alerts.push({ nivel: 'aviso', texto: `${refErros} células com erro #REF! na aba (linhas de modelo sem uso). Não afetam os totais exibidos.` });
@@ -819,7 +1043,7 @@ const MODEL = (() => {
       medido: pick('medido'), faturado: pick('faturado'), recebido: pick('recebido'),
       falta: pick('falta') ?? (pick('medido') != null && pick('recebido') != null ? pick('medido') - pick('recebido') : null),
       medicoes, matrix: { cols: matrix.cols, rows: Object.fromEntries(Object.entries(matrix.rows).map(([k, v]) => [k, { label: v.label, values: v.values }])) },
-      series, alerts
+      series, previsoes, alerts
     };
   }
 
@@ -1226,6 +1450,7 @@ const CHARTS = (() => {
 const STORE_KEY = 'cosampa-faturamento-v1';
 const UI_KEY = 'cosampa-faturamento-ui-v1';
 const TEMA_KEY = 'cosampa-tema';
+const VISTOS_KEY = 'cosampa-avisos-vistos';
 const { brl, compact, esc } = CHARTS;
 const $ = s => document.querySelector(s);
 const R = (root, k) => root.querySelector(`[data-r="${k}"]`);
@@ -1241,14 +1466,14 @@ const COMPOS = [
   { key: 'med', name: 'Medido a faturar', color: 'var(--c-med)' },
   { key: 'saldo', name: 'A medir', color: 'var(--c-saldo)' }
 ];
-const TITULOS = { geral: 'Visão geral', obra: 'Por obra', medicoes: 'Medições', alertas: 'Avisos' };
-const NIVEL_COR = { critico: 'var(--critical)', aviso: 'var(--warning)', info: 'var(--neutro)' };
+const ROTAS = ['geral', 'obra', 'medicoes', 'config'];
 
 let data = null;
-let ui = { tab: 'geral', modo: 'total', obra: 0, f: {} };
+let ui = { tab: 'geral', modo: 'total', obra: 0, f: {}, de: null, ate: '' };
 
 function store(key, val) { try { localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); } catch (e) { /* armazenamento indisponível */ } }
 function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+function loadTxt(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
 
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.hidden = false;
@@ -1256,20 +1481,16 @@ function toast(msg) {
 }
 const pct = (a, b) => (b ? (a / b * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '—');
 
-// ---------- Tema (tela branca / tela preta) ----------
+// ---------- Tema (tela clara / escura) ----------
 function temaAtual() {
   const t = document.documentElement.getAttribute('data-theme');
   if (t) return t;
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
-function pintarBotaoTema() {
-  $('#temaTxt').textContent = temaAtual() === 'dark' ? 'Tela clara' : 'Tela escura';
-}
-function alternarTema() {
-  const novo = temaAtual() === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', novo);
-  store(TEMA_KEY, novo);
-  pintarBotaoTema();
+function definirTema(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  store(TEMA_KEY, t);
+  render();
 }
 
 // ---------- Importação ----------
@@ -1287,10 +1508,12 @@ async function importar(file) {
     toast('Não foi possível ler o arquivo: ' + e.message);
   }
 }
+function dataHora(iso) {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+}
 function fonteTexto() {
-  if (!data) return '';
-  const d = new Date(data.importadoEm);
-  return `${data.arquivo} · importado em ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  return data ? `${data.arquivo} · importado em ${dataHora(data.importadoEm)}` : '';
 }
 
 // ---------- Cálculos ----------
@@ -1299,9 +1522,26 @@ function numeros(o, modo) {
   const contrato = (o.contrato || 0) * k, medido = (o.medido || 0) * k, faturado = (o.faturado || 0) * k, recebido = (o.recebido || 0) * k;
   return { contrato, medido, faturado, recebido, aReceber: medido - recebido, aMedir: contrato - medido };
 }
-function somar(obras, modo) {
+// ---------- Posição até um mês (filtro de período da visão geral) ----------
+// Lançamentos só com o ano (ex.: "2024") contam como dezembro daquele ano.
+const ymFim = ym => (ym % 100 ? ym : ym + 12);
+const mesLabel = ym => `${MODEL.MES_NOME[ym % 100]}/${Math.floor(ym / 100)}`;
+function mesesDisponiveis() {
+  const s = new Set();
+  for (const o of data.obras) for (const x of o.series) if (x.ym && (x.med || x.fat || x.rec)) s.add(ymFim(x.ym));
+  return [...s].sort((a, b) => b - a);
+}
+// Sem mês: usa o resumo REALIZADO/SALDO da aba. Com mês: soma a matriz por BM até aquele mês.
+function numerosAte(o, modo, ate) {
+  if (!ate) return numeros(o, modo);
+  const k = modo === 'cosampa' ? (o.share ?? 0) : 1;
+  const soma = key => o.series.reduce((a, x) => a + (x.ym && ymFim(x.ym) <= ate ? (x[key] || 0) : 0), 0);
+  const contrato = (o.contrato || 0) * k, medido = soma('med') * k, faturado = soma('fat') * k, recebido = soma('rec') * k;
+  return { contrato, medido, faturado, recebido, aReceber: medido - recebido, aMedir: contrato - medido };
+}
+function somar(obras, modo, ate) {
   const t = { contrato: 0, medido: 0, faturado: 0, recebido: 0, aReceber: 0, aMedir: 0 };
-  for (const o of obras) { const n = numeros(o, modo); for (const k in t) t[k] += n[k]; }
+  for (const o of obras) { const n = numerosAte(o, modo, ate); for (const k in t) t[k] += n[k]; }
   return t;
 }
 // Valor grande abreviado (R$ 1,84 bi); o exato fica embaixo. Barrinha = % do contrato.
@@ -1320,12 +1560,6 @@ function tiles(n) {
     tile('Saldo a medir', n.aMedir, pct(n.aMedir, n.contrato) + ' do contrato', f(n.aMedir), 'var(--neutro)')
   ].join('');
 }
-// Nível de alerta mais grave de uma obra (para a cor da linha/bolinha)
-function nivelObra(o) {
-  if (o.alerts.some(a => a.nivel === 'critico')) return 'critico';
-  if (o.alerts.some(a => a.nivel === 'aviso')) return 'aviso';
-  return null;
-}
 function compos(n) {
   return [
     { ...COMPOS[0], v: n.recebido },
@@ -1335,44 +1569,90 @@ function compos(n) {
   ];
 }
 
+// ---------- Prazos e previsões (seção discreta, recolhida por padrão) ----------
+// A planilha só tem o mês do BM; os dias são contados a partir do último dia desse mês.
+function diasDesde(ym) {
+  const f = ymFim(ym), fim = new Date(Math.floor(f / 100), f % 100, 0);
+  return Math.max(0, Math.floor((Date.now() - fim) / 86400000));
+}
+function renderPrazos(el, obras, umaObra) {
+  const fat = [];
+  for (const o of obras) {
+    const ix = {};
+    for (const m of o.medicoes) {
+      if (m.status !== 'Faturada') continue;
+      const g = ix[m.bm] || (ix[m.bm] = { obra: o.nome, bm: m.bm, mes: m.mes, ym: m.ym, v: 0 });
+      g.v += m.total;
+    }
+    fat.push(...Object.values(ix));
+  }
+  fat.forEach(g => { g.dias = g.ym ? diasDesde(g.ym) : null; });
+  fat.sort((a, b) => (b.dias ?? -1) - (a.dias ?? -1));
+  const prev = obras.flatMap(o => (o.previsoes || []).map(p => ({ ...p, obra: o.nome })));
+  if (!fat.length && !prev.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const nome = x => (umaObra ? '' : esc(x.obra) + ' · ');
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  const lFat = fat.length ? fat.map(g => `<li><span>${nome(g)}${esc(g.bm)}${g.mes ? ` (${esc(g.mes)})` : ''}</span><span>R$ ${compact(g.v)}${g.dias != null ? ` · <span class="dias${g.dias > 30 ? ' longo' : ''}">~${g.dias} dias</span>` : ''}</span></li>`).join('')
+    : '<li><span class="dias">Nenhum BM faturado aguardando recebimento.</span></li>';
+  const lPrev = prev.length ? prev.map(p => `<li title="Fonte: ${esc(p.fonte)}"><span>${nome(p)}${esc(p.bm)}${p.mes ? ` (${esc(p.mes)})` : ''}</span><span>R$ ${compact(p.v)}</span></li>`).join('')
+    : '<li><span class="dias">Nenhuma previsão informada.</span></li>';
+  el.innerHTML = `<summary><b>Prazos e previsões</b><span class="resumo">${plural(fat.length, 'BM faturado aguardando recebimento', 'BMs faturados aguardando recebimento')} · ${plural(prev.length, 'previsão de medição', 'previsões de medição')}</span></summary>
+    <div class="corpo"><div><h4>Faturado aguardando recebimento</h4><ul>${lFat}</ul></div>
+    <div><h4>Previsão de medição</h4><ul>${lPrev}</ul></div>
+    <p class="nota">Dias contados a partir do fim do mês do BM (a planilha não tem a data da nota fiscal). Previsões vêm da linha "Previsão medição" ou de BMs comentados como previstos na planilha.</p></div>`;
+  el.open = !!ui.prazosAberto;
+  el.ontoggle = () => { ui.prazosAberto = el.open; store(UI_KEY, ui); };
+}
+
 // ---------- Visão geral ----------
 function renderGeral(root, opts = {}) {
   const modo = opts.modo || ui.modo;
+  const meses = mesesDisponiveis();
+  const ate = opts.print ? 0 : (meses.includes(+ui.ate) ? +ui.ate : 0);
   root.querySelectorAll('[data-r="modo"] button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
+  const sel = R(root, 'ate');
+  sel.innerHTML = '<option value="">Atual (resumo da planilha)</option>' + meses.map(m => `<option value="${m}"${m === ate ? ' selected' : ''}>até ${mesLabel(m)}</option>`).join('');
+  sel.classList.toggle('ativo', !!ate);
   const obras = modo === 'cosampa' ? data.obras.filter(o => o.share != null) : data.obras;
   const fora = data.obras.filter(o => o.share == null).map(o => o.nome);
-  R(root, 'nota').textContent = modo === 'cosampa'
+  const notas = [modo === 'cosampa'
     ? `Valores × participação COSAMPA.${fora.length ? ' Fora do total (sem % na planilha): ' + fora.join(', ') + '.' : ''}`
-    : 'Valores do contrato inteiro (100%), conforme o resumo REALIZADO/SALDO de cada aba.';
-  const t = somar(obras, modo);
+    : 'Valores do contrato inteiro (100%).'];
+  notas.push(ate
+    ? `Posição até ${mesLabel(ate)}: soma da matriz por BM até esse mês (pode diferir um pouco do resumo da aba).`
+    : 'Posição atual, conforme o resumo REALIZADO/SALDO de cada aba.');
+  R(root, 'nota').textContent = notas.join(' ');
+  R(root, 'notaPrint').textContent = notas.join(' ');
+  const t = somar(obras, modo, ate);
   R(root, 'tiles').innerHTML = tiles(t);
 
   const w = opts.print ? { width: 300, animate: false } : {};
-  CHARTS.donut(R(root, 'donut'), compos(t), { key: 'donut-' + modo, centroValor: pct(t.recebido, t.contrato), centroRotulo: 'recebido', aria: 'Composição do contrato', ...w });
+  const chave = `${modo}-${ate}`;
+  CHARTS.donut(R(root, 'donut'), compos(t), { key: 'donut-' + chave, centroValor: pct(t.recebido, t.contrato), centroRotulo: 'recebido', aria: 'Composição do contrato', ...w });
 
   const rows = obras.map(o => {
-    const n = numeros(o, modo);
+    const n = numerosAte(o, modo, ate);
     return { label: o.nome, idx: data.obras.indexOf(o), right: `${compact(n.contrato)} · ${pct(n.recebido, n.contrato)} recebido`, segs: compos(n), base: n.contrato };
   });
   CHARTS.stackBars(R(root, 'obras'), rows, COMPOS, {
-    key: 'obras-' + modo, aria: 'Execução financeira por obra',
-    onClick: opts.print ? null : r => { ui.obra = r.idx; ui.tab = 'obra'; render(); window.scrollTo(0, 0); },
+    key: 'obras-' + chave, aria: 'Execução financeira por obra',
+    onClick: opts.print ? null : r => navegar({ tab: 'obra', obra: r.idx }),
     ...(opts.print ? { width: 420, animate: false } : {})
   });
 
   const head = `<thead><tr><th>Obra</th><th class="n">Part.</th><th>Posição</th><th class="n">Contrato</th><th class="n">Medido</th><th class="n">% med.</th><th class="n">Faturado</th><th class="n">Recebido</th><th class="n">A receber</th><th class="n">Saldo a medir</th></tr></thead>`;
   const body = obras.map(o => {
-    const n = numeros(o, modo);
-    const nv = nivelObra(o);
-    const nA = o.alerts.filter(a => a.nivel !== 'info').length;
-    return `<tr class="clicavel" data-obra="${data.obras.indexOf(o)}"${nv ? ` style="--nivel:${NIVEL_COR[nv]}"` : ''}><td><div class="obra-cel"><span class="bola"></span><div><b>${esc(o.nome)}</b>
-      <small>${o.medicoes.length} lançamentos · ${nA ? nA + (nA > 1 ? ' avisos' : ' aviso') : 'nenhum aviso'}</small></div></div></td>
-      <td class="n">${o.share != null ? (o.share * 100).toLocaleString('pt-BR') + '%' : '—'}</td><td>${o.refMes ? 'até BM de ' + esc(o.refMes) : '—'}</td>
+    const n = numerosAte(o, modo, ate);
+    return `<tr class="clicavel" data-obra="${data.obras.indexOf(o)}"><td><div class="obra-cel"><div><b>${esc(o.nome)}</b>
+      <small>${o.medicoes.length} lançamentos</small></div></div></td>
+      <td class="n">${o.share != null ? (o.share * 100).toLocaleString('pt-BR') + '%' : '—'}</td><td>${ate ? 'até ' + mesLabel(ate) : o.refMes ? 'até BM de ' + esc(o.refMes) : '—'}</td>
       <td class="n">${brl(n.contrato)}</td><td class="n">${brl(n.medido)}</td><td class="n">${pct(n.medido, n.contrato)}</td>
       <td class="n">${brl(n.faturado)}</td><td class="n">${brl(n.recebido)}</td><td class="n">${brl(n.aReceber)}</td><td class="n">${brl(n.aMedir)}</td></tr>`;
   }).join('');
   const foot = `<tfoot><tr><td>Total</td><td></td><td></td><td class="n">${brl(t.contrato)}</td><td class="n">${brl(t.medido)}</td><td class="n">${pct(t.medido, t.contrato)}</td><td class="n">${brl(t.faturado)}</td><td class="n">${brl(t.recebido)}</td><td class="n">${brl(t.aReceber)}</td><td class="n">${brl(t.aMedir)}</td></tr></tfoot>`;
   R(root, 'tabela').innerHTML = head + '<tbody>' + body + '</tbody>' + foot;
+  renderPrazos(R(root, 'prazos'), data.obras, false);
 }
 
 // ---------- Por obra ----------
@@ -1413,7 +1693,7 @@ function renderObra(root, idx, opts = {}) {
   for (const g of groups) g.extra = '<div class="muted" style="margin-top:4px">' + g.linhas.map(l => `${esc(l.tipo)}: ${brl(l.total)}`).join('<br>') + '</div>';
   CHARTS.columns(R(root, 'bm'), groups, STATUS, {
     key: 'bm-' + o.nome, aria: `Faturamento por BM — ${o.nome}`, ...pw,
-    onClick: opts.print ? null : g => { ui.f = { obra: o.nome, busca: g.label }; ui.tab = 'medicoes'; render(); window.scrollTo(0, 0); }
+    onClick: opts.print ? null : g => navegar({ tab: 'medicoes', f: { obra: o.nome, busca: g.label }, de: 'obra', obra: idx })
   });
 
   // Linhas acumuladas
@@ -1434,8 +1714,10 @@ function renderObra(root, idx, opts = {}) {
     aria: `Acumulado medido, faturado e recebido — ${o.nome}`
   });
 
+  renderPrazos(R(root, 'prazos'), [o], true);
+
   // Matriz
-  const ordem = ['previsao', 'medido', 'reajuste', 'aditivo', 'fd', 'desconto', 'faturado', 'reajFat', 'recebido', 'reajRec'];
+  const ordem =['previsao', 'medido', 'reajuste', 'aditivo', 'fd', 'desconto', 'faturado', 'reajFat', 'recebido', 'reajRec'];
   const fmt = v => (v == null ? '' : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   let html = '<thead><tr><th>Linha</th>' + o.matrix.cols.map(c => `<th class="n">${esc(c.label)}</th>`).join('') + '<th class="n">Total</th></tr></thead><tbody>';
   for (const k of ordem) {
@@ -1504,30 +1786,119 @@ function exportarCSV() {
   const linhas = [['Obra', 'Medição', 'Mês/Ano', 'Tipo', 'Faturamento bruto', 'Faturamento direto', 'Faturamento total', 'Situação'].join(';')]
     .concat(rows.map(m => [m.obra, m.bm, m.mes, m.tipo, n(m.bruto), n(m.direto), n(m.total), m.status].join(';')));
   const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'medicoes-filtradas.csv'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  baixar(blob, 'medicoes-filtradas.csv');
 }
 
-// ---------- Alertas ----------
-function htmlAlertas() {
+function baixar(blob, nome) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Excel formatado: cabeçalho escuro, valores em R$, filtro e linha de totais com fórmula.
+function exportarXLSX() {
+  const rows = filtrar();
+  const cab = ['Obra', 'Medição', 'Mês/Ano', 'Tipo', 'Faturamento bruto', 'Faturamento direto', 'Faturamento total', 'Situação'].map(v => ({ v, s: 1 }));
+  const dados = rows.map(m => [m.obra, m.bm, m.mes, m.tipo, { v: m.bruto, s: 2 }, { v: m.direto, s: 2 }, { v: m.total, s: 2 }, m.status]);
+  const fim = rows.length + 1;
+  const total = [{ v: `Total (${rows.length})`, s: 4 }, { v: '', s: 4 }, { v: '', s: 4 }, { v: '', s: 4 },
+    ...['E', 'F', 'G'].map(c => ({ f: `SUBTOTAL(9,${c}2:${c}${fim})`, s: 3 })), { v: '', s: 4 }];
+  const f = ui.f, filtros = [['Obra', f.obra], ['Tipo', f.tipo], ['Situação', f.status], ['De', f.de], ['Até', f.ate], ['Busca', f.busca]].filter(x => x[1]);
+  const info = [
+    [{ v: 'Controle de Faturamento — Renováveis e Hídricas', s: 4 }],
+    ['Fonte', fonteTexto()],
+    ['Exportado em', dataHora(new Date())],
+    ['Filtros', filtros.length ? filtros.map(x => `${x[0]}: ${x[1]}`).join(' · ') : 'nenhum'],
+    ['Lançamentos', rows.length]
+  ];
+  const blob = XLSX_MIN.write([
+    { nome: 'Medições', larguras: [14, 16, 12, 18, 20, 20, 20, 14], linhas: [cab, ...dados, total], filtro: true, filtroAte: fim, congelar: true },
+    { nome: 'Informações', larguras: [16, 90], linhas: info }
+  ]);
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  baixar(blob, `medicoes-${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}.xlsx`);
+}
+
+// ---------- Busca rápida (topo) ----------
+const semAcento = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function resultadosBusca(q) {
+  const termos = semAcento(q).trim().split(/\s+/).filter(Boolean);
+  if (!termos.length || !data) return [];
+  const casa = txt => termos.every(t => semAcento(txt).includes(t));
+  const res = [];
+  data.obras.forEach((o, i) => { if (casa(o.nome)) res.push({ tipo: 'Obra', cls: '', texto: o.nome, info: `${o.medicoes.length} lançamentos`, r: { tab: 'obra', obra: i } }); });
+  data.obras.forEach((o, i) => {
+    const vistos = new Set();
+    for (const m of o.medicoes) {
+      if (vistos.has(m.bm)) continue;
+      vistos.add(m.bm);
+      if (casa(`${o.nome} ${m.bm} ${m.mes} ${m.status}`)) {
+        res.push({ tipo: 'BM', cls: 'bm', texto: `${o.nome} · ${m.bm}`, info: `${m.mes} · ${m.status}`, r: { tab: 'medicoes', f: { obra: o.nome, busca: m.bm }, de: 'obra', obra: i } });
+      }
+    }
+  });
+  for (const [tab, nome] of [['geral', 'Visão geral'], ['medicoes', 'Medições'], ['config', 'Configurações e avisos']]) {
+    if (casa(nome)) res.push({ tipo: 'Página', cls: 'pag', texto: nome, info: '', r: tab === 'medicoes' ? { tab, f: {}, de: null } : { tab } });
+  }
+  return res.slice(0, 10);
+}
+let buscaRes = [], buscaSel = 0;
+function mostrarBusca() {
+  const q = $('#buscaInput').value, lista = $('#buscaLista');
+  buscaRes = resultadosBusca(q); buscaSel = 0;
+  if (!q.trim()) { lista.hidden = true; return; }
+  lista.innerHTML = buscaRes.length
+    ? buscaRes.map((x, i) => `<button type="button" role="option" data-i="${i}" class="${i === 0 ? 'sel' : ''}"><span class="tipo ${x.cls}">${x.tipo}</span><span>${esc(x.texto)}</span><small>${esc(x.info)}</small></button>`).join('')
+    : `<div class="vazio-b">Nada encontrado para “${esc(q)}”.</div>`;
+  lista.hidden = false;
+}
+function fecharBusca() { $('#buscaLista').hidden = true; $('#busca').classList.remove('aberta'); }
+function escolherBusca(i) {
+  const x = buscaRes[i]; if (!x) return;
+  $('#buscaInput').value = ''; fecharBusca(); $('#buscaInput').blur();
+  navegar(x.r);
+}
+
+// ---------- Apagar dados do aparelho ----------
+function apagarDados() {
+  if (!confirm('Apagar a planilha guardada neste aparelho?\n\nO app volta para a tela de importação. A planilha original no seu computador não é afetada.')) return;
+  for (const k of [STORE_KEY, UI_KEY, VISTOS_KEY]) { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } }
+  data = null;
+  ui = { tab: 'geral', modo: 'total', obra: 0, f: {}, de: null, ate: '' };
+  history.replaceState({ d: 0 }, '', hashDe(ui));
+  render();
+  toast('Dados apagados deste aparelho.');
+}
+
+// ---------- Configurações e avisos ----------
+function itensAvisos() {
   const itens = data.obras.flatMap(o => o.alerts.map(a => ({ ...a, obra: o.nome })));
   const ordem = { critico: 0, aviso: 1, info: 2 };
-  itens.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]);
+  return itens.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]);
+}
+function htmlAlertas() {
   const rot = { critico: 'Crítico', aviso: 'Atenção', info: 'Info' };
-  const nCrit = itens.filter(a => a.nivel !== 'info').length;
-  const html = itens.length ? itens.map(a =>
+  const itens = itensAvisos();
+  return itens.length ? itens.map(a =>
     `<div class="alerta ${a.nivel}"><span class="tag">${rot[a.nivel]}</span><div><span class="ob">${esc(a.obra)}</span> — ${esc(a.texto)}</div></div>`).join('')
     : '<p class="muted">Nenhum ponto de atenção encontrado.</p>';
-  const conta = n => itens.filter(a => a.nivel === n).length;
-  return { html, nCrit, nCritico: conta('critico'), nAviso: conta('aviso') };
 }
-function renderAlertas() {
-  const { html, nCrit, nCritico, nAviso } = htmlAlertas();
-  $('#listaAlertas').innerHTML = html;
-  const b = $('#nAlertas'); b.textContent = nCrit; b.hidden = !nCrit;
-  const pil = (n, rot, cor) => (n ? `<button class="pilula" data-ir="alertas" style="--cor:${cor}"><span class="bola"></span><b>${n}</b><span>${rot}</span></button>` : '');
-  $('#pilulas').innerHTML = pil(nCritico, nCritico > 1 ? 'Críticos' : 'Crítico', 'var(--critical)') + pil(nAviso, nAviso > 1 ? 'Atenções' : 'Atenção', 'var(--warning)');
+// Identifica o conjunto atual de avisos; muda quando a planilha importada traz avisos diferentes.
+const assinaturaAvisos = () => (data ? itensAvisos().map(a => a.obra + a.texto).join('|') : '');
+function sinalAvisos() {
+  const sig = assinaturaAvisos();
+  const novo = !!sig && sig !== loadTxt(VISTOS_KEY);
+  $('#pontoNovo').hidden = !novo;
+  $('#pontoNovoMenu').hidden = !novo;
+}
+function renderConfig() {
+  document.querySelectorAll('#temaSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tema === temaAtual())));
+  const nL = data.obras.reduce((n, o) => n + o.medicoes.length, 0);
+  $('#cfgPlanilha').innerHTML = `Arquivo: <b>${esc(data.arquivo)}</b><br>Importado em ${dataHora(data.importadoEm)}<br>${data.obras.length} obras · ${nL} lançamentos · dados guardados só neste aparelho.`;
+  const itens = itensAvisos();
+  $('#cfgContagem').textContent = itens.length ? `(${itens.length})` : '';
+  $('#listaAlertas').innerHTML = htmlAlertas();
+  store(VISTOS_KEY, assinaturaAvisos()); // abriu as configurações = avisos vistos
+  sinalAvisos();
 }
 
 // ---------- PDF ----------
@@ -1545,7 +1916,7 @@ function imprimir(titulo, antes, depois) {
   setTimeout(() => window.print(), 60);
 }
 function pdfTela() {
-  const nomes = { geral: 'Visão geral', obra: data.obras[ui.obra]?.nome || 'Obra', medicoes: 'Medições', alertas: 'Alertas' };
+  const nomes = { geral: 'Visão geral', obra: data.obras[ui.obra]?.nome || 'Obra', medicoes: 'Medições', config: 'Configurações e avisos' };
   imprimir(nomeArquivoPDF(nomes[ui.tab]));
 }
 function pdfCompleto() {
@@ -1559,7 +1930,7 @@ function montarRelatorio() {
   rel.hidden = false;
   const d = new Date();
   const capa = `<div class="rel-capa"><div><img src="${document.querySelector('.logo-side').src}" alt="Grupo COSAMPA"><h1>Controle de Faturamento — Renováveis e Hídricas</h1>
-    <p>Fonte: ${esc(fonteTexto())}</p></div><p>Gerado em ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p></div>`;
+    <p>Fonte: ${esc(fonteTexto())}</p></div><p>Gerado em ${dataHora(d)}</p></div>`;
   rel.innerHTML = capa;
   const secao = (tplId, titulo) => {
     const s = document.createElement('section');
@@ -1585,11 +1956,80 @@ function montarRelatorio() {
   });
   const al = document.createElement('section');
   al.className = 'rel-secao';
-  al.innerHTML = `<div class="card"><h3>Pontos de atenção na planilha</h3>${htmlAlertas().html}</div>`;
+  al.innerHTML = `<div class="card"><h3>Pontos de atenção na planilha</h3>${htmlAlertas()}</div>`;
   rel.appendChild(al);
 }
 
-// ---------- Navegação ----------
+// ---------- Navegação (com histórico: Voltar do navegador e gesto de voltar do celular) ----------
+// Cada tela tem um endereço: #/geral, #/obra/2, #/medicoes?obra=...&busca=..., #/config
+function hashDe(r) {
+  let h = '#/' + r.tab;
+  if (r.tab === 'geral' && r.ate) h += '?ate=' + r.ate;
+  if (r.tab === 'obra') h += '/' + (r.obra || 0);
+  if (r.tab === 'medicoes') {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(r.f || {})) if (v) q.set(k, v);
+    if (r.de === 'obra') { q.set('de', 'obra'); q.set('o', r.obra); }
+    const s = q.toString();
+    if (s) h += '?' + s;
+  }
+  return h;
+}
+function lerHash() {
+  const m = /^#\/(\w+)(?:\/(\d+))?(?:\?(.*))?$/.exec(location.hash);
+  if (!m || !ROTAS.includes(m[1])) return null;
+  const r = { tab: m[1], f: {}, de: null };
+  if (m[1] === 'obra') r.obra = +(m[2] || 0);
+  if (m[1] === 'geral') r.ate = (m[3] && new URLSearchParams(m[3]).get('ate')) || '';
+  if (m[1] === 'medicoes' && m[3]) {
+    for (const [k, v] of new URLSearchParams(m[3])) {
+      if (k === 'de') r.de = v; else if (k === 'o') r.obra = +v; else r.f[k] = v;
+    }
+  }
+  return r;
+}
+function aplicar(r) {
+  ui.tab = r.tab;
+  if (r.obra != null) ui.obra = r.obra;
+  if (r.ate != null) ui.ate = r.ate;
+  if (r.tab === 'medicoes') { ui.f = r.f || {}; ui.de = r.de || null; }
+}
+const profundidade = () => (history.state && history.state.d) || 0;
+function navegar(r, { substituir = false } = {}) {
+  aplicar(r);
+  const h = hashDe(ui);
+  if (substituir) history.replaceState({ d: profundidade() }, '', h);
+  else if (h !== location.hash) history.pushState({ d: profundidade() + 1 }, '', h);
+  fecharMenu();
+  render();
+  if (!substituir) window.scrollTo(0, 0);
+}
+// Caminho até a tela atual (trilha no topo). O último item é a tela aberta.
+function trilha() {
+  const t = [{ label: 'Visão geral', r: { tab: 'geral' } }];
+  const o = data && data.obras[ui.obra];
+  if (ui.tab === 'obra' && o) t.push({ label: o.nome });
+  else if (ui.tab === 'medicoes') {
+    if (ui.de === 'obra' && o) {
+      t.push({ label: o.nome, r: { tab: 'obra', obra: ui.obra } });
+      t.push({ label: ui.f.busca || 'Medições' });
+    } else t.push({ label: 'Medições' });
+  } else if (ui.tab === 'config') t.push({ label: 'Configurações' });
+  return t;
+}
+function voltar() {
+  const t = trilha();
+  if (profundidade() > 0) history.back();
+  else if (t.length > 1) navegar(t[t.length - 2].r, { substituir: true });
+}
+function renderTopo() {
+  const t = data ? trilha() : [{ label: 'Importar planilha' }];
+  $('#tituloPagina').textContent = t[t.length - 1].label;
+  $('#trilha').innerHTML = '<span>Controle de Faturamento</span>' +
+    t.slice(0, -1).map((x, i) => `<span class="sep">›</span><a href="${hashDe({ ...ui, ...x.r, f: {} })}" data-i="${i}">${esc(x.label)}</a>`).join('');
+  $('#voltar').hidden = t.length < 2;
+}
+
 function estadoPlanilha() {
   if (!data) { $('#estadoTxt').textContent = 'Nenhuma planilha importada'; $('#estadoPt').className = 'pt vazio'; return; }
   const d = new Date(data.importadoEm), hoje = new Date().toDateString() === d.toDateString();
@@ -1597,7 +2037,6 @@ function estadoPlanilha() {
   $('#estadoTxt').textContent = `Planilha carregada · lida ${hoje ? 'às ' + hora : 'em ' + d.toLocaleDateString('pt-BR')}`;
   $('#estadoPt').className = 'pt';
 }
-function irPara(tab) { ui.tab = tab; fecharMenu(); render(); window.scrollTo(0, 0); }
 function fecharMenu() { document.body.classList.remove('menu-aberto'); $('#veu').hidden = true; }
 
 function render() {
@@ -1606,50 +2045,96 @@ function render() {
   const vazio = !data;
   $('#vazio').hidden = !vazio;
   $('#pdf').disabled = vazio;
-  $('#tituloPagina').textContent = vazio ? 'Importar planilha' : TITULOS[ui.tab];
+  $('#busca').hidden = vazio;
+  renderTopo();
   document.querySelectorAll('main > .tab').forEach(s => { s.hidden = vazio || s.id !== 'tab-' + ui.tab; });
   document.querySelectorAll('.side-nav .item[data-tab]').forEach(b => {
     if (b.dataset.tab === ui.tab && !vazio) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   store(UI_KEY, ui);
-  if (vazio) { $('#pilulas').innerHTML = ''; return; }
-  renderAlertas();
+  if (vazio) { $('#pontoNovo').hidden = $('#pontoNovoMenu').hidden = true; return; }
+  sinalAvisos();
   if (ui.tab === 'geral') renderGeral($('#tab-geral'));
   else if (ui.tab === 'obra') renderObra($('#tab-obra'), ui.obra);
   else if (ui.tab === 'medicoes') renderMedicoes();
+  else if (ui.tab === 'config') renderConfig();
 }
 
 function init() {
   data = load(STORE_KEY);
   ui = Object.assign(ui, load(UI_KEY) || {});
   ui.f = ui.f || {};
-  pintarBotaoTema();
-  $('#tema').addEventListener('click', () => { alternarTema(); fecharMenu(); });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', pintarBotaoTema);
+  if (!ROTAS.includes(ui.tab)) ui.tab = 'geral';
+  const r0 = lerHash();
+  if (r0) aplicar(r0);
+  history.replaceState({ d: profundidade() }, '', hashDe(ui));
+  window.addEventListener('popstate', () => { const r = lerHash(); if (r) aplicar(r); fecharMenu(); render(); });
 
-  for (const id of ['#arquivo', '#arquivo2']) {
+  for (const id of ['#arquivo', '#arquivo2', '#arquivo3']) {
     $(id).addEventListener('change', e => { const f = e.target.files[0]; if (f) importar(f); e.target.value = ''; });
   }
   document.querySelector('.side-nav').addEventListener('click', e => {
-    const b = e.target.closest('.item[data-tab]'); if (b && data) irPara(b.dataset.tab);
+    const b = e.target.closest('.item[data-tab]');
+    if (!b || !data) return;
+    const tab = b.dataset.tab;
+    navegar(tab === 'medicoes' ? { tab, f: ui.tab === 'medicoes' ? ui.f : {}, de: null } : { tab });
   });
-  $('#pilulas').addEventListener('click', e => { if (e.target.closest('[data-ir]')) irPara('alertas'); });
+  $('#voltar').addEventListener('click', voltar);
+  $('#trilha').addEventListener('click', e => {
+    const a = e.target.closest('a[data-i]'); if (!a) return;
+    e.preventDefault();
+    navegar(trilha()[+a.dataset.i].r);
+  });
   $('#menuBtn').addEventListener('click', () => { document.body.classList.add('menu-aberto'); $('#veu').hidden = false; });
   $('#veu').addEventListener('click', fecharMenu);
   $('#tab-geral').addEventListener('click', e => {
     const b = e.target.closest('[data-r="modo"] button');
     if (b) { ui.modo = b.dataset.modo; render(); return; }
     const tr = e.target.closest('tr[data-obra]');
-    if (tr) { ui.obra = +tr.dataset.obra; irPara('obra'); }
+    if (tr) navegar({ tab: 'obra', obra: +tr.dataset.obra });
   });
-  $('#tab-obra').addEventListener('click', e => { const b = e.target.closest('[data-r="chips"] button'); if (b) { ui.obra = +b.dataset.obra; render(); } });
+  $('#tab-obra').addEventListener('click', e => { const b = e.target.closest('[data-r="chips"] button'); if (b) navegar({ tab: 'obra', obra: +b.dataset.obra }, { substituir: true }); });
+  $('#temaSeg').addEventListener('click', e => { const b = e.target.closest('button[data-tema]'); if (b) definirTema(b.dataset.tema); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (ui.tab === 'config') render(); });
 
+  // Filtros: atualizam o endereço sem criar um passo novo no Voltar
   const fmap = { '#fObra': 'obra', '#fTipo': 'tipo', '#fStatus': 'status', '#fDe': 'de', '#fAte': 'ate', '#fBusca': 'busca' };
   for (const [sel, k] of Object.entries(fmap)) {
-    $(sel).addEventListener(sel === '#fBusca' ? 'input' : 'change', e => { ui.f[k] = e.target.value; render(); });
+    $(sel).addEventListener(sel === '#fBusca' ? 'input' : 'change', e => {
+      ui.f = { ...ui.f, [k]: e.target.value };
+      navegar({ tab: 'medicoes', f: ui.f, de: ui.de }, { substituir: true });
+    });
   }
-  $('#limpar').addEventListener('click', () => { ui.f = {}; $('#fBusca').value = ''; render(); });
+  $('#limpar').addEventListener('click', () => { $('#fBusca').value = ''; navegar({ tab: 'medicoes', f: {}, de: null }, { substituir: true }); });
   $('#csv').addEventListener('click', exportarCSV);
+  $('#xlsx').addEventListener('click', exportarXLSX);
+  $('#apagar').addEventListener('click', apagarDados);
+  $('#tab-geral').addEventListener('change', e => {
+    if (e.target.matches('[data-r="ate"]')) navegar({ tab: 'geral', ate: e.target.value }, { substituir: true });
+  });
+
+  // Busca rápida
+  const bi = $('#buscaInput');
+  bi.addEventListener('input', mostrarBusca);
+  bi.addEventListener('focus', () => { if (bi.value) mostrarBusca(); });
+  bi.addEventListener('keydown', e => {
+    const itens = [...$('#buscaLista').querySelectorAll('button')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!itens.length) return;
+      buscaSel = (buscaSel + (e.key === 'ArrowDown' ? 1 : -1) + itens.length) % itens.length;
+      itens.forEach((b, i) => b.classList.toggle('sel', i === buscaSel));
+      itens[buscaSel].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') { e.preventDefault(); escolherBusca(buscaSel); }
+    else if (e.key === 'Escape') { bi.value = ''; fecharBusca(); }
+  });
+  $('#buscaLista').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) escolherBusca(+b.dataset.i); });
+  $('#buscaBtn').addEventListener('click', () => {
+    document.documentElement.style.setProperty('--topo-h', document.querySelector('.topo').offsetHeight + 'px');
+    $('#busca').classList.toggle('aberta');
+    if ($('#busca').classList.contains('aberta')) bi.focus(); else fecharBusca();
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('#busca')) fecharBusca(); });
 
   // Menu Gerar PDF
   const menu = $('#pdfMenu'), btn = $('#pdf');
