@@ -439,9 +439,31 @@ tr.clicavel { cursor: pointer; }
   .card, .tile { box-shadow: none; break-inside: avoid; }
   .table-wrap { overflow: visible; }
   thead th { position: static; }
-  table { font-size: 10.5px; }
-  th, td { padding: 4px 6px; }
-  .tiles { grid-template-columns: repeat(3, 1fr); }
+  /* tabelas cabem na largura da folha: letra menor e cabeçalho pode quebrar linha */
+  .card { overflow: visible; }
+  /* card com tabela longa pode continuar na folha seguinte (o cabeçalho se repete) */
+  .card:has(table) { break-inside: auto; }
+  .card:has(.tabela-obras) { break-inside: avoid; } /* resumo das obras é curto: fica inteiro */
+  .card h3 { break-after: avoid; }
+  .status { font-size: 9px; padding: 1px 7px; gap: 4px; }
+  table { font-size: 9px; width: 100%; }
+  th, td { padding: 3px 4px; }
+  thead th { font-size: 8px; letter-spacing: .02em; white-space: normal; vertical-align: bottom; }
+  td { white-space: normal; }
+  td.n { white-space: nowrap; }
+  .tabela-obras { font-size: 8px; }
+  .tabela-obras .rs { display: none; }
+  th:last-child, td:last-child { padding-right: 8px; }
+  .tabela-obras thead th .print-only { font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .obra-cel b { font-size: 10px; }
+  .obra-cel small { font-size: 8px; }
+  tr, .alerta { break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot { display: table-row-group; } /* total só no fim, não repetido em cada folha */
+  .tiles { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .tiles:has(> :nth-child(7)) { grid-template-columns: repeat(4, 1fr); }
+  .tile { padding: 10px 12px 10px 14px; }
+  .tile .v { font-size: 20px; }
   .grid2 { grid-template-columns: 1fr 2fr; gap: 12px; }
   body.imprimindo-relatorio > *:not(#relatorio) { display: none !important; }
   body.imprimindo-relatorio #relatorio { display: block !important; position: static; width: auto; }
@@ -1712,16 +1734,18 @@ function renderGeral(root, opts = {}) {
     ...(opts.print ? { width: 420, animate: false } : {})
   });
 
-  const head = `<thead><tr><th>Obra</th><th class="n">Part.</th><th>Posição</th><th class="n">Contrato</th><th class="n">Medido</th><th class="n">% med.</th><th class="n">Faturado</th><th class="n">Recebido</th><th class="n">A receber</th><th class="n">Saldo a medir</th></tr></thead>`;
+  // no PDF o "R$" de cada célula some (o cabeçalho avisa) para as 10 colunas caberem na folha
+  const v = x => brl(x).replace(/R\$\s/, '<span class="rs">R$ </span>');
+  const head = `<thead><tr><th>Obra<span class="print-only">valores em R$</span></th><th class="n">Part.</th><th>Posição</th><th class="n">Contrato</th><th class="n">Medido</th><th class="n">% med.</th><th class="n">Faturado</th><th class="n">Recebido</th><th class="n">A receber</th><th class="n">Saldo a medir</th></tr></thead>`;
   const body = obras.map(o => {
     const n = numerosAte(o, modo, ate);
     return `<tr class="clicavel" data-obra="${data.obras.indexOf(o)}"><td><div class="obra-cel"><div><b>${esc(o.nome)}</b>
       <small>${o.medicoes.length} lançamentos</small></div></div></td>
       <td class="n">${o.share != null ? (o.share * 100).toLocaleString('pt-BR') + '%' : '—'}</td><td>${ate ? 'até ' + mesLabel(ate) : o.refMes ? 'até BM de ' + esc(o.refMes) : '—'}</td>
-      <td class="n">${brl(n.contrato)}</td><td class="n">${brl(n.medido)}</td><td class="n">${pct(n.medido, n.contrato)}</td>
-      <td class="n">${brl(n.faturado)}</td><td class="n">${brl(n.recebido)}</td><td class="n">${brl(n.aReceber)}</td><td class="n">${brl(n.aMedir)}</td></tr>`;
+      <td class="n">${v(n.contrato)}</td><td class="n">${v(n.medido)}</td><td class="n">${pct(n.medido, n.contrato)}</td>
+      <td class="n">${v(n.faturado)}</td><td class="n">${v(n.recebido)}</td><td class="n">${v(n.aReceber)}</td><td class="n">${v(n.aMedir)}</td></tr>`;
   }).join('');
-  const foot = `<tfoot><tr><td>Total</td><td></td><td></td><td class="n">${brl(t.contrato)}</td><td class="n">${brl(t.medido)}</td><td class="n">${pct(t.medido, t.contrato)}</td><td class="n">${brl(t.faturado)}</td><td class="n">${brl(t.recebido)}</td><td class="n">${brl(t.aReceber)}</td><td class="n">${brl(t.aMedir)}</td></tr></tfoot>`;
+  const foot = `<tfoot><tr><td>Total</td><td></td><td></td><td class="n">${v(t.contrato)}</td><td class="n">${v(t.medido)}</td><td class="n">${pct(t.medido, t.contrato)}</td><td class="n">${v(t.faturado)}</td><td class="n">${v(t.recebido)}</td><td class="n">${v(t.aReceber)}</td><td class="n">${v(t.aMedir)}</td></tr></tfoot>`;
   R(root, 'tabela').innerHTML = head + '<tbody>' + body + '</tbody>' + foot;
   renderPrazos(R(root, 'prazos'), data.obras, false);
 }
@@ -2250,34 +2274,4 @@ function init() {
   const params = new URLSearchParams(location.search);
   const src = params.get('src');
   if (src) {
-    fetch(src).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-      .then(b => importar(new File([b], decodeURIComponent(src.split('/').pop()))))
-      .then(() => { if (params.has('relatorio') && data) { montarRelatorio(); document.body.classList.add('imprimindo-relatorio'); } })
-      .catch(e => toast('Não foi possível carregar ' + src + ': ' + e.message));
-  }
-
-  // Atualização automática: ao abrir, a cada 10 minutos e ao voltar para o app (se passou do intervalo)
-  $('#sincronizar').addEventListener('click', () => sincronizar({ manual: true }));
-  $('#atualizarAgora').addEventListener('click', () => sincronizar({ manual: true }));
-  $('#salvarFonte').addEventListener('click', () => {
-    const v = $('#fonteUrl').value.trim();
-    store(FONTE_KEY, v);
-    toast(v ? 'Link salvo. Buscando a planilha…' : 'Atualização automática desligada. Use a importação manual.');
-    estadoPlanilha();
-    if (v) sincronizar({ manual: true });
-  });
-  const talvezSincronizar = () => { if (document.visibilityState === 'visible' && Date.now() - sync.ultima > INTERVALO_SYNC) sincronizar(); };
-  document.addEventListener('visibilitychange', talvezSincronizar);
-  setInterval(talvezSincronizar, 60 * 1000);
-  if (!src) sincronizar();
-
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
-  render();
-}
-
-init();
-</script>
-</body>
-</html>
+    fetch(src).
