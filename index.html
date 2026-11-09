@@ -182,6 +182,13 @@ svg { flex: none; }
 .busca-lista .vazio-b { padding: 10px; color: var(--muted); font-size: 14px; }
 
 .acoes-cfg { display: flex; gap: 10px; flex-wrap: wrap; }
+.campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.campo input { font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--ink); min-height: 38px; width: 100%; }
+.btn-sync[aria-busy="true"] svg { animation: girar 1s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.pt.sinc { background: var(--laranja); }
+.pt.erro { background: #e5484d; }
+.carregando { color: var(--laranja); font-weight: 700; margin: 0 0 6px; }
 .btn.perigo { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
 .btn.perigo:hover { background: color-mix(in srgb, var(--critical) 10%, transparent); }
 /* prazos e previsões: seção discreta, recolhida */
@@ -474,13 +481,17 @@ tr.clicavel { cursor: pointer; }
     </nav>
 
     <div class="side-foot">
-      <label class="btn-sync">
+      <button class="btn-sync" id="sincronizar" type="button" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        Sincronizar planilha
+      </button>
+      <label class="btn-sync" id="importarLado">
         <input id="arquivo" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
         Importar planilha
       </label>
       <p class="estado"><i class="pt" id="estadoPt"></i><span id="estadoTxt">Nenhuma planilha</span></p>
-      <p class="estado"><i class="pt cinza"></i>Modo local (este navegador)</p>
+      <p class="estado"><i class="pt cinza"></i><span id="estadoModo">Modo local (este navegador)</span></p>
     </div>
   </aside>
   <div class="veu" id="veu" hidden></div>
@@ -524,6 +535,7 @@ tr.clicavel { cursor: pointer; }
       <p class="fonte" id="fonte"></p>
       <section id="vazio" class="vazio" hidden>
         <div class="drop" id="drop">
+          <p class="carregando" id="vazioCarregando" hidden>Buscando a planilha publicada…</p>
           <h2>Importe a planilha de controle de faturamento</h2>
           <p>Selecione o arquivo <b>RENOVÁVEIS E HÍDRICAS - Cont. faturamento.xlsx</b>. A leitura acontece só neste aparelho; nada é enviado para a internet.</p>
           <label class="btn primary big"><input id="arquivo2" type="file" accept=".xlsx" hidden>Escolher arquivo .xlsx</label>
@@ -618,8 +630,16 @@ tr.clicavel { cursor: pointer; }
           <div class="card">
             <h3>Planilha</h3>
             <p class="muted small" id="cfgPlanilha"></p>
+            <label class="campo">Link da planilha publicada (atualização automática)
+              <input id="fonteUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/…/pubhtml" autocomplete="off">
+            </label>
+            <div class="acoes-cfg" style="margin:8px 0 14px">
+              <button class="btn" id="salvarFonte" type="button">Salvar link</button>
+              <button class="btn" id="atualizarAgora" type="button">Atualizar agora</button>
+            </div>
+            <p class="muted small">Com o link salvo, o app busca a planilha ao abrir, a cada 10 minutos e ao voltar para a tela. Deixe o campo vazio e salve para usar só a importação manual.</p>
             <div class="acoes-cfg">
-              <label class="btn primary"><input id="arquivo3" type="file" accept=".xlsx" hidden>Importar planilha atualizada</label>
+              <label class="btn primary"><input id="arquivo3" type="file" accept=".xlsx" hidden>Importar arquivo .xlsx</label>
               <button class="btn perigo" id="apagar" type="button">Apagar dados deste aparelho</button>
             </div>
             <p class="muted small" style="margin-top:10px">Apagar remove só a cópia guardada neste navegador; a planilha original não é afetada.</p>
@@ -1451,6 +1471,10 @@ const STORE_KEY = 'cosampa-faturamento-v1';
 const UI_KEY = 'cosampa-faturamento-ui-v1';
 const TEMA_KEY = 'cosampa-tema';
 const VISTOS_KEY = 'cosampa-avisos-vistos';
+const FONTE_KEY = 'cosampa-fonte-url';
+// Planilha publicada no Google Planilhas ("Publicar na Web"). Pode ser trocada em Configurações.
+const FONTE_PADRAO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvUx26o2N7fDCT2QHL-e-ut4tgs-mgySP6rhGBEkZqWLZ1MzVg4HmZtcQqU7b0hFQkb7B3SGv4P1OS/pubhtml';
+const INTERVALO_SYNC = 10 * 60 * 1000;
 const { brl, compact, esc } = CHARTS;
 const $ = s => document.querySelector(s);
 const R = (root, k) => root.querySelector(`[data-r="${k}"]`);
@@ -1494,26 +1518,73 @@ function definirTema(t) {
 }
 
 // ---------- Importação ----------
+function carregar(sheets, nome, origem) {
+  const novo = MODEL.build(sheets, nome);
+  novo.origem = origem;
+  const mudou = !data || JSON.stringify(novo.obras) !== JSON.stringify(data.obras);
+  data = novo;
+  store(STORE_KEY, data);
+  if (ui.obra >= data.obras.length) ui.obra = 0;
+  render();
+  return mudou;
+}
 async function importar(file) {
   try {
-    const buf = await file.arrayBuffer();
-    const sheets = await XLSX_MIN.read(buf);
-    data = MODEL.build(sheets, file.name);
-    store(STORE_KEY, data);
-    if (ui.obra >= data.obras.length) ui.obra = 0;
+    const sheets = await XLSX_MIN.read(await file.arrayBuffer());
+    carregar(sheets, file.name, 'arquivo');
     toast(`Planilha importada: ${data.obras.length} obras, ${data.obras.reduce((n, o) => n + o.medicoes.length, 0)} lançamentos.`);
-    render();
   } catch (e) {
     console.error(e);
     toast('Não foi possível ler o arquivo: ' + e.message);
   }
+}
+
+// ---------- Atualização automática pelo link publicado ----------
+function fonteSalva() { const v = loadTxt(FONTE_KEY); return v === null ? FONTE_PADRAO : v; }
+// Aceita o link de "Publicar na Web" (pubhtml) ou o link normal da planilha e devolve o endereço do .xlsx.
+function urlXlsx(u) {
+  u = (u || '').trim();
+  if (!u) return '';
+  const pub = /docs\.google\.com\/spreadsheets\/d\/e\/([^/?#]+)/.exec(u);
+  if (pub) return `https://docs.google.com/spreadsheets/d/e/${pub[1]}/pub?output=xlsx`;
+  const ed = /docs\.google\.com\/spreadsheets\/d\/([^/?#]+)/.exec(u);
+  if (ed) return `https://docs.google.com/spreadsheets/d/${ed[1]}/export?format=xlsx`;
+  return u;
+}
+// Aberto direto do disco (file://), o navegador bloqueia a leitura do link; funciona pelo atalho .bat ou publicado.
+const EM_ARQUIVO = location.protocol === 'file:';
+const linkAtivo = () => !EM_ARQUIVO && !!urlXlsx(fonteSalva());
+let sync = { estado: 'ok', ultima: 0, erro: '' };
+async function sincronizar({ manual = false } = {}) {
+  if (EM_ARQUIVO) {
+    if (manual) toast('Aberto direto do arquivo, o navegador não deixa buscar o link. Use o atalho "Abrir Controle de Faturamento.bat" ou importe o .xlsx.');
+    return;
+  }
+  const url = urlXlsx(fonteSalva());
+  if (!url || sync.estado === 'sinc') return;
+  sync.estado = 'sinc'; estadoPlanilha();
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('o servidor respondeu ' + r.status);
+    const sheets = await XLSX_MIN.read(await r.arrayBuffer());
+    const mudou = carregar(sheets, /docs\.google\.com/.test(url) ? 'Google Planilhas' : decodeURIComponent(url.split('/').pop().split('?')[0]), 'link');
+    sync = { estado: 'ok', ultima: Date.now(), erro: '' };
+    if (manual) toast(mudou ? 'Planilha atualizada.' : 'Planilha em dia: nenhuma mudança.');
+    else if (mudou) toast('Planilha atualizada com a versão publicada.');
+  } catch (e) {
+    console.error(e);
+    sync.estado = 'erro'; sync.erro = e.message;
+    if (manual) toast(`Não foi possível buscar a planilha (${e.message}). ${data ? 'Mostrando os dados guardados.' : ''}`);
+  }
+  estadoPlanilha();
+  if (!data) render();
 }
 function dataHora(iso) {
   const d = new Date(iso);
   return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 function fonteTexto() {
-  return data ? `${data.arquivo} · importado em ${dataHora(data.importadoEm)}` : '';
+  return data ? `${data.arquivo} · ${data.origem === 'link' ? 'lida' : 'importado'} em ${dataHora(data.importadoEm)}` : '';
 }
 
 // ---------- Cálculos ----------
@@ -1860,7 +1931,7 @@ function escolherBusca(i) {
 
 // ---------- Apagar dados do aparelho ----------
 function apagarDados() {
-  if (!confirm('Apagar a planilha guardada neste aparelho?\n\nO app volta para a tela de importação. A planilha original no seu computador não é afetada.')) return;
+  if (!confirm('Apagar a planilha guardada neste aparelho?\n\nA planilha original não é afetada. Se houver link de atualização automática salvo, os dados serão buscados de novo na próxima abertura (para evitar isso, apague o link em Configurações).')) return;
   for (const k of [STORE_KEY, UI_KEY, VISTOS_KEY]) { try { localStorage.removeItem(k); } catch (e) { /* ignora */ } }
   data = null;
   ui = { tab: 'geral', modo: 'total', obra: 0, f: {}, de: null, ate: '' };
@@ -1893,7 +1964,8 @@ function sinalAvisos() {
 function renderConfig() {
   document.querySelectorAll('#temaSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tema === temaAtual())));
   const nL = data.obras.reduce((n, o) => n + o.medicoes.length, 0);
-  $('#cfgPlanilha').innerHTML = `Arquivo: <b>${esc(data.arquivo)}</b><br>Importado em ${dataHora(data.importadoEm)}<br>${data.obras.length} obras · ${nL} lançamentos · dados guardados só neste aparelho.`;
+  $('#cfgPlanilha').innerHTML = `Origem: <b>${esc(data.arquivo)}</b>${data.origem === 'link' ? ' (link publicado)' : ''}<br>Lida em ${dataHora(data.importadoEm)}<br>${data.obras.length} obras · ${nL} lançamentos · cópia guardada neste aparelho.`;
+  if (document.activeElement !== $('#fonteUrl')) $('#fonteUrl').value = fonteSalva();
   const itens = itensAvisos();
   $('#cfgContagem').textContent = itens.length ? `(${itens.length})` : '';
   $('#listaAlertas').innerHTML = htmlAlertas();
@@ -2031,11 +2103,21 @@ function renderTopo() {
 }
 
 function estadoPlanilha() {
-  if (!data) { $('#estadoTxt').textContent = 'Nenhuma planilha importada'; $('#estadoPt').className = 'pt vazio'; return; }
+  const temLink = linkAtivo();
+  $('#sincronizar').hidden = !temLink;
+  $('#importarLado').hidden = temLink;
+  $('#sincronizar').setAttribute('aria-busy', String(sync.estado === 'sinc'));
+  $('#estadoModo').textContent = temLink ? 'Fonte: planilha publicada (link)'
+    : EM_ARQUIVO && urlXlsx(fonteSalva()) ? 'Arquivo local: sincronização só pelo atalho .bat' : 'Modo local (este navegador)';
+  $('#vazioCarregando').hidden = !(sync.estado === 'sinc' && !data);
+  const pt = $('#estadoPt'), txt = $('#estadoTxt');
+  if (sync.estado === 'sinc') { pt.className = 'pt sinc'; txt.textContent = 'Sincronizando…'; return; }
+  if (!data) { pt.className = sync.estado === 'erro' ? 'pt erro' : 'pt vazio'; txt.textContent = sync.estado === 'erro' ? 'Sem conexão com a planilha' : 'Nenhuma planilha importada'; return; }
   const d = new Date(data.importadoEm), hoje = new Date().toDateString() === d.toDateString();
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  $('#estadoTxt').textContent = `Planilha carregada · lida ${hoje ? 'às ' + hora : 'em ' + d.toLocaleDateString('pt-BR')}`;
-  $('#estadoPt').className = 'pt';
+  const quando = hoje ? 'às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'em ' + d.toLocaleDateString('pt-BR');
+  if (sync.estado === 'erro' && temLink) { pt.className = 'pt erro'; txt.textContent = `Sem conexão · dados lidos ${quando}`; return; }
+  pt.className = 'pt';
+  txt.textContent = `${data.origem === 'link' ? 'Planilha em dia' : 'Planilha carregada'} · lida ${quando}`;
 }
 function fecharMenu() { document.body.classList.remove('menu-aberto'); $('#veu').hidden = true; }
 
@@ -2173,6 +2255,21 @@ function init() {
       .then(() => { if (params.has('relatorio') && data) { montarRelatorio(); document.body.classList.add('imprimindo-relatorio'); } })
       .catch(e => toast('Não foi possível carregar ' + src + ': ' + e.message));
   }
+
+  // Atualização automática: ao abrir, a cada 10 minutos e ao voltar para o app (se passou do intervalo)
+  $('#sincronizar').addEventListener('click', () => sincronizar({ manual: true }));
+  $('#atualizarAgora').addEventListener('click', () => sincronizar({ manual: true }));
+  $('#salvarFonte').addEventListener('click', () => {
+    const v = $('#fonteUrl').value.trim();
+    store(FONTE_KEY, v);
+    toast(v ? 'Link salvo. Buscando a planilha…' : 'Atualização automática desligada. Use a importação manual.');
+    estadoPlanilha();
+    if (v) sincronizar({ manual: true });
+  });
+  const talvezSincronizar = () => { if (document.visibilityState === 'visible' && Date.now() - sync.ultima > INTERVALO_SYNC) sincronizar(); };
+  document.addEventListener('visibilitychange', talvezSincronizar);
+  setInterval(talvezSincronizar, 60 * 1000);
+  if (!src) sincronizar();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
