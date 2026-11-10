@@ -226,6 +226,23 @@ svg { flex: none; }
 .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .topo .btn { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .22); }
 .topo .btn:hover { background: rgba(255, 255, 255, .08); }
+/* janela de escolha do relatório em PDF */
+.dlg { border: 1px solid var(--border); border-top: 3px solid var(--laranja); border-radius: 14px; padding: 20px 22px; width: min(440px, calc(100vw - 32px));
+  background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0, 0, 0, .35); font-size: 14px; }
+.dlg::backdrop { background: rgba(0, 0, 0, .5); }
+.dlg h3 { font-size: 18px; margin: 0 0 2px; }
+.dlg .muted { margin: 0 0 14px; color: var(--muted); }
+.dlg fieldset { border: 1px solid var(--border); border-radius: 10px; margin: 12px 0 0; padding: 8px 12px 10px; }
+.dlg legend { color: var(--muted); font-size: 12px; padding: 0 4px; }
+.chk { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+.chk input { width: 17px; height: 17px; accent-color: var(--laranja); }
+.chk-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+.dlg-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
+.dlg-acoes .espaco { flex: 1; }
+.dlg .btn { color: var(--ink); background: var(--surface); border-color: var(--border); }
+.dlg .btn.primary { background: var(--laranja); color: #111214; border-color: transparent; }
+.dlg .btn:disabled { opacity: .45; cursor: not-allowed; }
+
 /* tela clara/escura no topo: mostra o ícone do tema para o qual vai mudar */
 .tema-btn { padding-left: 10px; padding-right: 10px; }
 .tema-btn svg { width: 18px; height: 18px; }
@@ -559,9 +576,23 @@ tr.clicavel { cursor: pointer; }
           </button>
           <div class="menu" id="pdfMenu" hidden>
             <button type="button" data-pdf="tela"><b>Esta tela</b><span>Salva a página aberta</span></button>
-            <button type="button" data-pdf="completo"><b>Relatório completo</b><span>Visão geral + todas as obras</span></button>
+            <button type="button" data-pdf="completo"><b>Relatório</b><span>Escolha a visão geral e as obras</span></button>
           </div>
         </div>
+        <dialog class="dlg" id="relDlg" aria-labelledby="relTit">
+          <form method="dialog">
+            <h3 id="relTit">Relatório em PDF</h3>
+            <p class="muted">Escolha o que entra no relatório.</p>
+            <label class="chk"><input type="checkbox" id="relGeral" checked> Visão geral (contrato 100% e parte COSAMPA)</label>
+            <fieldset><legend>Obras</legend><div class="chk-grade" id="relObras"></div></fieldset>
+            <div class="dlg-acoes">
+              <button type="button" class="btn" id="relTodas">Marcar/desmarcar tudo</button>
+              <span class="espaco"></span>
+              <button class="btn" value="cancel" formnovalidate>Cancelar</button>
+              <button class="btn primary" value="ok" id="relGerar">Gerar PDF</button>
+            </div>
+          </form>
+        </dialog>
       </div>
     </header>
 
@@ -622,7 +653,7 @@ tr.clicavel { cursor: pointer; }
         </div>
         <div class="card">
           <h3>Acumulado: medido, faturado e recebido</h3>
-          <p class="muted small">Soma acumulada da matriz por BM (com reajuste, aditivo, FD e desconto de downpayment; sem o downpayment), comparada ao contrato. Pode diferir um pouco do resumo da aba, que soma FD e desconto também de BMs ainda não recebidos.</p>
+          <p class="muted small">Soma acumulada da matriz por BM, comparada ao contrato. O último ponto de cada linha é o valor do resumo REALIZADO da aba.</p>
           <div data-r="acum" class="chart"></div>
         </div>
         <details class="card prazos" data-r="prazos"></details>
@@ -749,6 +780,87 @@ const XLSX_MIN = (() => {
     return null;
   }
 
+  // ---------- Recálculo de fórmulas simples ----------
+  // O Google Planilhas grava o resultado das fórmulas com só ~10 dígitos (R$ 451.016.209,4 em vez de ,43).
+  // Recalculamos as fórmulas simples (SUM, + - * /, referências na mesma aba) a partir dos valores digitados,
+  // que vêm completos. Fórmula que não entendemos (outra aba, outra função, erro) fica com o valor gravado.
+  const colLetra = n => { let s = ''; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  // Fórmula compartilhada: o Excel/Google grava só a primeira; as demais são a mesma deslocada.
+  function moverFormula(ft, dr, dc) {
+    return ft.replace(/(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(])/g, (_, ca, col, ra, row) =>
+      ca + (ca ? col : colLetra(colNum(col) + dc)) + ra + (ra ? row : +row + dr));
+  }
+  function recalcular(grid, formulas) {
+    const cache = {}, emCurso = new Set();
+    const FALHA = {};
+    const valor = (r, c) => {
+      const k = r + ':' + c;
+      if (formulas[k] != null) return calc(k);
+      const v = grid[r] && grid[r][c];
+      if (v == null || v === '') return 0;
+      if (typeof v === 'number') return v;
+      throw FALHA;
+    };
+    const calc = k => {
+      if (k in cache) { if (cache[k] === FALHA) throw FALHA; return cache[k]; }
+      if (emCurso.has(k)) throw FALHA;
+      emCurso.add(k);
+      try { cache[k] = avaliar(formulas[k]); return cache[k]; }
+      catch (e) { cache[k] = FALHA; throw FALHA; }
+      finally { emCurso.delete(k); }
+    };
+    // Avaliador de expressões: números, refs (A1, $A$1), SUM(intervalos/refs/expr), + - * / e parênteses.
+    function avaliar(txt) {
+      const tk = txt.replace(/\s+/g, '').match(/\$?[A-Z]{1,3}\$?\d+(:\$?[A-Z]{1,3}\$?\d+)?|SUM\(|\d+(\.\d+)?(E[+-]?\d+)?|[-+*/(),]|./gi) || [];
+      let i = 0;
+      const ref = s => { const m = /^\$?([A-Z]+)\$?(\d+)$/i.exec(s); return [+m[2], colNum(m[1].toUpperCase())]; };
+      const prim = () => {
+        const t = tk[i++];
+        if (t == null) throw FALHA;
+        if (t === '-') return -prim();
+        if (t === '+') return prim();
+        if (t === '(') { const v = soma(); if (tk[i++] !== ')') throw FALHA; return v; }
+        if (/^SUM\($/i.test(t)) {
+          let total = 0;
+          for (;;) {
+            const a = tk[i];
+            if (a && a.includes(':')) {
+              i++;
+              const [p, q] = a.split(':'), [r1, c1] = ref(p), [r2, c2] = ref(q);
+              for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++)
+                for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+                  const k = r + ':' + c;
+                  if (formulas[k] != null) total += calc(k);
+                  else { const v = grid[r] && grid[r][c]; if (typeof v === 'number') total += v; } // texto é ignorado no SUM
+                }
+            } else total += soma();
+            const s = tk[i++];
+            if (s === ')') return total;
+            if (s !== ',') throw FALHA;
+          }
+        }
+        if (/^\d/.test(t)) return Number(t);
+        if (/^\$?[A-Z]{1,3}\$?\d+$/i.test(t)) { const [r, c] = ref(t); return valor(r, c); }
+        throw FALHA;
+      };
+      const prod = () => { let v = prim(); while (tk[i] === '*' || tk[i] === '/') { const o = tk[i++], w = prim(); v = o === '*' ? v * w : v / w; } return v; };
+      const soma = () => { let v = prod(); while (tk[i] === '+' || tk[i] === '-') { const o = tk[i++], w = prod(); v = o === '+' ? v + w : v - w; } return v; };
+      const v = soma();
+      if (i !== tk.length || !isFinite(v)) throw FALHA;
+      return v;
+    }
+    for (const k of Object.keys(formulas)) {
+      const [r, c] = k.split(':').map(Number);
+      const gravado = grid[r] && grid[r][c];
+      if (typeof gravado !== 'number') continue;
+      try {
+        const v = calc(k);
+        // Só troca se for o mesmo número com mais casas (segurança contra fórmula mal interpretada)
+        if (Math.abs(v - gravado) <= Math.max(0.01, Math.abs(gravado) * 1e-7)) grid[r][c] = v;
+      } catch (e) { /* mantém o valor gravado */ }
+    }
+  }
+
   // Retorna [{ name, grid }] onde grid[linha][coluna] = valor (números 1-based).
   async function read(buf) {
     const files = await readZip(buf);
@@ -782,6 +894,7 @@ const XLSX_MIN = (() => {
       const body = path && await text(path);
       if (!body) continue;
       const grid = {};
+      const formulas = {}, masters = {};
       let maxRow = 0, maxCol = 0;
       for (const c of xml(body).getElementsByTagName('c')) {
         const m = /^([A-Z]+)(\d+)$/.exec(c.getAttribute('r') || '');
@@ -789,6 +902,16 @@ const XLSX_MIN = (() => {
         const t = c.getAttribute('t');
         const vEl = c.getElementsByTagName('v')[0];
         const v = vEl ? vEl.textContent : null;
+        const fEl = c.getElementsByTagName('f')[0];
+        if (fEl && !t) {
+          const r0 = +m[2], c0 = colNum(m[1]), si = fEl.getAttribute('si');
+          let ft = fEl.textContent;
+          if (fEl.getAttribute('t') === 'shared') {
+            if (ft) masters[si] = { ft, r0, c0 };
+            else if (masters[si]) ft = moverFormula(masters[si].ft, r0 - masters[si].r0, c0 - masters[si].c0);
+          }
+          if (ft) formulas[r0 + ':' + c0] = ft;
+        }
         let val = null;
         if (t === 's') val = v != null ? ss[+v] : null;
         else if (t === 'inlineStr') val = c.textContent;
@@ -801,6 +924,7 @@ const XLSX_MIN = (() => {
         if (row > maxRow) maxRow = row;
         if (col > maxCol) maxCol = col;
       }
+      recalcular(grid, formulas);
       // Comentários das células (ex.: "PREVISTO" no cabeçalho de um BM)
       const comments = {};
       const relTxt = await text(path.replace(/worksheets\/([^/]+)$/, 'worksheets/_rels/$1.rels'));
@@ -1086,6 +1210,20 @@ const MODEL = (() => {
     const naTabela = new Set(medicoes.flatMap(m => m.bms));
     const faltando = series.filter(s => s.med && s.bm != null && !naTabela.has(s.bm)).map(s => s.label);
     if (faltando.length) alerts.push({ nivel: 'aviso', texto: `BM com valor medido na matriz, mas ausente da tabela de medições: ${faltando.join(', ')}.` });
+    // Recebido maior que faturado no mesmo BM (o resumo da aba passa a mostrar mais recebido que faturado)
+    for (const [kf, kr] of [['faturado', 'recebido'], ['reajFat', 'reajRec']]) {
+      const lf = matrix.rows[kf], lr = matrix.rows[kr];
+      if (!lf || !lr) continue;
+      matrix.cols.forEach((c, i) => {
+        const f = num(lf.values[i]), rc = num(lr.values[i]);
+        // Downpayment só tem "recebido", é normal. Nos demais pode ser ajuste intencional
+        // (ex.: valor recebido num BM e retirado do medido do mês seguinte), por isso é só informativo.
+        if (c.bm !== 0 && rc - f > 1) {
+          const L = letra(cols[i]);
+          alerts.push({ nivel: 'info', texto: `${c.label}: recebido ${fmtBRL(rc - f)} maior que o faturado (${L}${lr.linha} = ${fmtBRL(rc)}; ${L}${lf.linha} = ${fmtBRL(f)}). Se for ajuste lançado só no recebimento, está correto; no app, o "faturado a receber" fica em zero em vez de negativo.` });
+        }
+      });
+    }
     if (share == null) alerts.push({ nivel: 'info', texto: 'A aba não informa o percentual de participação da COSAMPA; a obra fica fora do total "Parte COSAMPA".' });
     if (contratoInformado != null && contrato != null && Math.abs(contratoInformado - contrato) > 1) {
       alerts.push({ nivel: 'info', texto: `Valor do contrato usado no saldo (${fmtBRL(contrato)}) difere do primeiro "Valor do Contrato" da aba (${fmtBRL(contratoInformado)}).` });
@@ -1679,11 +1817,14 @@ function tiles(n) {
     tile('Saldo a medir', n.aMedir, pct(n.aMedir, n.contrato) + ' do contrato', f(n.aMedir), 'var(--neutro)')
   ].join('');
 }
+// Se a planilha registra mais recebido que faturado (erro de digitação), o "faturado a receber" fica em zero
+// e o "medido a faturar" passa a contar a partir do recebido; a soma das partes continua igual ao contrato.
 function compos(n) {
+  const fat = Math.max(n.faturado, n.recebido);
   return [
     { ...COMPOS[0], v: n.recebido },
-    { ...COMPOS[1], v: n.faturado - n.recebido },
-    { ...COMPOS[2], v: n.medido - n.faturado },
+    { ...COMPOS[1], v: fat - n.recebido },
+    { ...COMPOS[2], v: n.medido - fat },
     { ...COMPOS[3], v: n.aMedir }
   ];
 }
@@ -1818,11 +1959,16 @@ function renderObra(root, idx, opts = {}) {
   });
 
   // Linhas acumuladas
+  // O último ponto de cada linha fecha com o resumo REALIZADO da aba, que também soma FD e desconto de
+  // downpayment de BMs ainda não faturados/recebidos; a diferença entra no último BM da linha.
   const s = o.series;
+  const resumo = { med: o.medido, fat: o.faturado, rec: o.recebido };
   const acum = key => {
     let last = -1; s.forEach((x, i) => { if (x[key] != null) last = i; });
     let acc = 0;
-    return s.map((x, i) => { if (i > last) return null; acc += x[key] || 0; return acc; });
+    const v = s.map((x, i) => { if (i > last) return null; acc += x[key] || 0; return acc; });
+    if (last >= 0 && resumo[key] != null) v[last] = resumo[key];
+    return v;
   };
   CHARTS.lines(R(root, 'acum'), s.map(x => bmShort(x.label)), [
     { key: 'med', name: 'Medido', color: 'var(--s1)', values: acum('med'), width: 2.6 },
@@ -2029,9 +2175,18 @@ function nomeArquivoPDF(sufixo) {
   const p = n => String(n).padStart(2, '0');
   return `Controle de Faturamento - ${sufixo} - ${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
+// Rodapé de cada folha: o que é, quando foi gerado e "Página X de Y"
+function rodapePDF(rotulo) {
+  let s = $('#estiloPagina');
+  if (!s) { s = document.createElement('style'); s.id = 'estiloPagina'; document.head.appendChild(s); }
+  const txt = `Grupo COSAMPA · ${rotulo} · gerado em ${dataHora(new Date())}`.replace(/["\\]/g, '');
+  const fonte = 'font-family: system-ui, "Segoe UI", sans-serif; font-size: 8pt; color: #6b6b73;';
+  s.textContent = `@page { @bottom-left { content: "${txt}"; ${fonte} } @bottom-right { content: "Página " counter(page) " de " counter(pages); ${fonte} } }`;
+}
 function imprimir(titulo, antes, depois) {
   const tituloOriginal = document.title;
   document.title = titulo;
+  rodapePDF(titulo.replace(/^Controle de Faturamento - /, '').replace(/ - [\d-]+$/, ''));
   antes && antes();
   const fim = () => { document.title = tituloOriginal; depois && depois(); window.removeEventListener('afterprint', fim); };
   window.addEventListener('afterprint', fim);
@@ -2041,13 +2196,33 @@ function pdfTela() {
   const nomes = { geral: 'Visão geral', obra: data.obras[ui.obra]?.nome || 'Obra', medicoes: 'Medições', config: 'Configurações e avisos' };
   imprimir(nomeArquivoPDF(nomes[ui.tab]));
 }
-function pdfCompleto() {
-  montarRelatorio();
-  imprimir(nomeArquivoPDF('Relatório completo'),
+// Janela para escolher o que entra no relatório (visão geral e quais obras)
+function abrirEscolhaRelatorio() {
+  $('#relObras').innerHTML = data.obras.map((o, i) =>
+    `<label class="chk"><input type="checkbox" value="${i}" checked> ${esc(o.nome)}</label>`).join('');
+  $('#relGeral').checked = true;
+  conferirEscolha();
+  $('#relDlg').showModal();
+}
+function escolhaRelatorio() {
+  return { geral: $('#relGeral').checked, obras: [...$('#relObras').querySelectorAll('input:checked')].map(c => +c.value) };
+}
+function conferirEscolha() {
+  const e = escolhaRelatorio();
+  $('#relGerar').disabled = !e.geral && !e.obras.length;
+}
+function pdfCompleto(escolha) {
+  const e = escolha || { geral: true, obras: data.obras.map((_, i) => i) };
+  const todas = e.geral && e.obras.length === data.obras.length;
+  const nome = todas ? 'Relatório completo'
+    : 'Relatório - ' + [e.geral ? 'Visão geral' : null, ...e.obras.map(i => data.obras[i].nome)].filter(Boolean).join(', ');
+  montarRelatorio(e);
+  imprimir(nomeArquivoPDF(nome),
     () => document.body.classList.add('imprimindo-relatorio'),
     () => { document.body.classList.remove('imprimindo-relatorio'); $('#relatorio').hidden = true; $('#relatorio').innerHTML = ''; });
 }
-function montarRelatorio() {
+function montarRelatorio(escolha) {
+  const e = escolha || { geral: true, obras: data.obras.map((_, i) => i) };
   const rel = $('#relatorio');
   rel.hidden = false;
   const d = new Date();
@@ -2064,11 +2239,12 @@ function montarRelatorio() {
     s.appendChild(c); rel.appendChild(s);
     return c;
   };
-  for (const modo of ['total', 'cosampa']) {
+  if (e.geral) for (const modo of ['total', 'cosampa']) {
     const g = secao('#tab-geral', modo === 'total' ? 'Visão geral — contrato 100%' : 'Visão geral — parte COSAMPA');
     renderGeral(g, { print: true, modo });
   }
-  data.obras.forEach((o, i) => {
+  e.obras.forEach(i => {
+    const o = data.obras[i];
     const c = secao('#tab-obra', '');
     renderObra(c, i, { print: true });
     const card = document.createElement('div');
@@ -2277,8 +2453,16 @@ function init() {
   menu.addEventListener('click', e => {
     const b = e.target.closest('button[data-pdf]'); if (!b) return;
     fechar();
-    if (b.dataset.pdf === 'tela') pdfTela(); else pdfCompleto();
+    if (b.dataset.pdf === 'tela') pdfTela(); else abrirEscolhaRelatorio();
   });
+  $('#relDlg').addEventListener('change', conferirEscolha);
+  $('#relTodas').addEventListener('click', () => {
+    const cs = [$('#relGeral'), ...$('#relObras').querySelectorAll('input')];
+    const marcar = cs.some(c => !c.checked);
+    cs.forEach(c => { c.checked = marcar; });
+    conferirEscolha();
+  });
+  $('#relDlg').addEventListener('close', () => { if ($('#relDlg').returnValue === 'ok') pdfCompleto(escolhaRelatorio()); });
   document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) fechar(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { fechar(); fecharMenu(); } });
 
@@ -2304,7 +2488,14 @@ function init() {
   if (src) {
     fetch(src).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
       .then(b => importar(new File([b], decodeURIComponent(src.split('/').pop()))))
-      .then(() => { if (params.has('relatorio') && data) { montarRelatorio(); document.body.classList.add('imprimindo-relatorio'); } })
+      .then(() => {
+        if (!params.has('relatorio') || !data) return;
+        // &obras=0,2 e &geral=0 escolhem o conteúdo (como na janela do Gerar PDF)
+        const ob = params.get('obras');
+        montarRelatorio({ geral: params.get('geral') !== '0', obras: ob ? ob.split(',').map(Number) : data.obras.map((_, i) => i) });
+        rodapePDF('Relatório');
+        document.body.classList.add('imprimindo-relatorio');
+      })
       .catch(e => toast('Não foi possível carregar ' + src + ': ' + e.message));
   }
 
