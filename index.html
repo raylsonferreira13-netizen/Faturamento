@@ -653,7 +653,7 @@ tr.clicavel { cursor: pointer; }
         </div>
         <div class="card">
           <h3>Acumulado: medido, faturado e recebido</h3>
-          <p class="muted small">Soma acumulada da matriz por BM, comparada ao contrato. O último ponto de cada linha é o valor do resumo REALIZADO da aba.</p>
+          <p class="muted small">Soma acumulada da matriz por BM, comparada ao contrato. O último BM mostra o resumo REALIZADO da aba (medido, faturado e recebido "até BM de …").</p>
           <div data-r="acum" class="chart"></div>
         </div>
         <details class="card prazos" data-r="prazos"></details>
@@ -1959,15 +1959,16 @@ function renderObra(root, idx, opts = {}) {
   });
 
   // Linhas acumuladas
-  // O último ponto de cada linha fecha com o resumo REALIZADO da aba, que também soma FD e desconto de
-  // downpayment de BMs ainda não faturados/recebidos; a diferença entra no último BM da linha.
+  // As três linhas vão até o último BM (o da posição do resumo, ex.: "até BM de Outubro") e esse último ponto
+  // é o resumo REALIZADO da aba. Faturado/recebido ficam estáveis nos BMs ainda não faturados; o salto no fim
+  // é o FD e o desconto de downpayment desses BMs, que o resumo da aba já soma.
   const s = o.series;
   const resumo = { med: o.medido, fat: o.faturado, rec: o.recebido };
+  let fim = -1; s.forEach((x, i) => { if (x.med != null || x.fat != null || x.rec != null) fim = i; });
   const acum = key => {
-    let last = -1; s.forEach((x, i) => { if (x[key] != null) last = i; });
     let acc = 0;
-    const v = s.map((x, i) => { if (i > last) return null; acc += x[key] || 0; return acc; });
-    if (last >= 0 && resumo[key] != null) v[last] = resumo[key];
+    const v = s.map((x, i) => { if (i > fim) return null; acc += x[key] || 0; return acc; });
+    if (fim >= 0 && resumo[key] != null) v[fim] = resumo[key];
     return v;
   };
   CHARTS.lines(R(root, 'acum'), s.map(x => bmShort(x.label)), [
