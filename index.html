@@ -309,6 +309,13 @@ tfoot td { font-weight: 800; border-top: 2px solid var(--axis); border-bottom: 0
 td.neg { color: var(--critical); font-weight: 700; }
 table.matrix td:first-child, table.matrix th:first-child { position: sticky; left: 0; z-index: 1; }
 table.matrix td:first-child { background: var(--surface); font-weight: 600; }
+table.matrix tbody.resumo td { background: var(--surface-2); font-weight: 700; }
+table.matrix tbody.resumo tr.sec td span { position: sticky; left: 12px; }
+table.matrix td.soma-linha { color: var(--ink-2); font-style: italic; }
+table.matrix tbody.resumo td.fora { opacity: .35; font-weight: 400; text-decoration: line-through; }
+.matriz-topo { margin-bottom: 0; }
+.matriz-topo h3 { margin: 0; }
+table.matrix tbody.resumo tr.sec td { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted, inherit); border-top: 2px solid var(--axis); position: static; }
 tr.clicavel { cursor: pointer; }
 .tabela-obras td:first-child { border-left: 4px solid var(--nivel, var(--neutro)); }
 .obra-cel { display: flex; align-items: center; gap: 12px; }
@@ -658,7 +665,12 @@ tr.clicavel { cursor: pointer; }
         </div>
         <details class="card prazos" data-r="prazos"></details>
         <div class="card flush" data-r="matrizCard">
-          <h3 class="pad">Matriz por BM</h3>
+          <div class="pad row-between matriz-topo">
+            <h3>Matriz por BM</h3>
+            <label class="periodo no-print-ctrl">Resumo
+              <select data-r="ateMatriz" aria-label="Resumo até o mês"></select>
+            </label>
+          </div>
           <div class="table-wrap"><table data-r="matriz" class="matrix"></table></div>
         </div>
       </section>
@@ -691,6 +703,11 @@ tr.clicavel { cursor: pointer; }
               <button data-tema="light" aria-pressed="true">Tela clara</button>
               <button data-tema="dark" aria-pressed="false">Tela escura</button>
             </div>
+          </div>
+          <div class="card">
+            <h3>Matriz por BM</h3>
+            <p class="muted small">Na matriz de cada obra, a coluna Total mostra só os totais do Resumo de faturamento (iguais à planilha). A soma simples das linhas da planilha fica oculta para não confundir. Fica salvo neste aparelho.</p>
+            <label class="chk"><input type="checkbox" id="cfgSomaLinha"> Mostrar também a soma das linhas da planilha (medido, reajuste, FD…) na coluna Total</label>
           </div>
           <div class="card">
             <h3>Planilha</h3>
@@ -941,7 +958,7 @@ const XLSX_MIN = (() => {
           }
         }
       }
-      sheets.push({ name: s.getAttribute('name'), state: s.getAttribute('state') || 'visible', grid, maxRow, maxCol, comments });
+      sheets.push({ name: s.getAttribute('name'), state: s.getAttribute('state') || 'visible', grid, maxRow, maxCol, comments, formulas });
     }
     return sheets;
   }
@@ -1144,7 +1161,7 @@ const MODEL = (() => {
       const key = t.startsWith('MEDIDO ATE') ? 'medido' : t.startsWith('FATURADO ATE') ? 'faturado'
         : t.startsWith('RECEBIDO ATE') ? 'recebido' : (t.startsWith('FALTA RECEBER') || t.startsWith('FALTA A RECEBER')) ? 'falta' : null;
       if (key && isNum(val.v) && blocos[modo][key] == null) {
-        blocos[modo][key] = { v: val.v, saldo: isNum(val.saldo) ? val.saldo : null };
+        blocos[modo][key] = { v: val.v, saldo: isNum(val.saldo) ? val.saldo : null, linha: r };
         if (key === 'medido' && !refMes) { const m = /BM\s*DE\s*([A-Za-zÀ-ú]+)/i.exec(a); if (m) refMes = m[1]; }
       }
       if (t.startsWith('VALOR DO CONTRATO') && contratoInformado == null && isNum(at(r, 2))) contratoInformado = at(r, 2);
@@ -1175,20 +1192,57 @@ const MODEL = (() => {
       }
     }
 
+    // Resumo REALIZADO por coluna: lê a fórmula da própria célula ("Medido até BM de…" etc.) e separa
+    // quanto cada coluna de BM soma nela. Assim gráficos e matriz seguem a mesma regra da aba
+    // (ex.: Seriemas soma de C a V, sem o downpayment; Eixão só conta reajuste a partir da coluna J).
+    const F = sheet.formulas || {};
+    const resumoCol = {}, formulaResumo = {};
+    const vetores = {};
+    for (const k of ['medido', 'faturado', 'recebido', 'falta']) {
+      const b = T[k]; if (!b) continue;
+      const f = F[b.linha + ':2'];
+      const d = decompor(f, at, vetores);
+      if (!d) continue;
+      vetores['B' + b.linha] = d;
+      formulaResumo[k] = '=' + f.replace(/^=/, '');
+      const soma = Object.values(d).reduce((a, v) => a + v, 0);
+      const fora = Object.keys(d).map(Number).filter(c => !cols.includes(c) && Math.abs(d[c]) > 0.005);
+      if (Math.abs(soma - b.v) > 0.05 || fora.length) {
+        alerts.push({ nivel: 'info', texto: `Não foi possível separar por BM a fórmula de "${k}" (${f}); gráficos usam a soma das linhas da matriz.` });
+        continue;
+      }
+      resumoCol[k] = cols.map(c => (c in d ? d[c] : null));
+    }
+
     // Série por BM: medido total, faturado e recebido (incluindo reajuste, FD e desconto de downpayment)
     const R = k => (matrix.rows[k] ? matrix.rows[k].values : []);
     const mesPorBm = {};
     for (const m of medicoes) for (const n of m.bms) if (m.ym && !mesPorBm[n]) mesPorBm[n] = { label: m.mes, ym: m.ym };
-    const series = matrix.cols.map((c, i) => {
+    const todas = matrix.cols.map((c, i) => {
       const has = k => R(k)[i] != null;
       const v = k => num(R(k)[i]);
-      const med = has('medido') || has('reajuste') || has('aditivo') ? v('medido') + v('reajuste') + v('aditivo') : null;
-      const fat = has('faturado') || has('reajFat') ? v('faturado') + v('reajFat') + v('fd') + v('desconto') : null;
-      const rec = has('recebido') || has('reajRec') ? v('recebido') + v('reajRec') + v('fd') + v('desconto') : null;
+      const doResumo = (k, alt) => (resumoCol[k] ? resumoCol[k][i] : alt());
+      const med = doResumo('medido', () => (has('medido') || has('reajuste') || has('aditivo') ? v('medido') + v('reajuste') + v('aditivo') : null));
+      const fat = doResumo('faturado', () => (has('faturado') || has('reajFat') ? v('faturado') + v('reajFat') + v('fd') + v('desconto') : null));
+      const rec = doResumo('recebido', () => (has('recebido') || has('reajRec') ? v('recebido') + v('reajRec') + v('fd') + v('desconto') : null));
       const prev = has('previsao') ? v('previsao') : null;
       const mes = mesPorBm[c.bm];
       return { label: c.label, bm: c.bm, mes: mes ? mes.label : '', ym: mes ? mes.ym : null, med, fat, rec, prev };
-    }).filter(s => s.bm !== 0); // Downpayment é adiantamento: o resumo da aba também não o soma ao medido.
+    });
+    // Mês usado na "posição até o mês": BM sem mês na tabela (ex.: LNTP, downpayment) fica no mês do
+    // primeiro BM com data; BM depois do último com data avança um mês por coluna (BM 34 - Outubro...).
+    const conhecidos = todas.map((s, i) => [i, s.ym]).filter(([, ym]) => ym);
+    todas.forEach((s, i) => {
+      if (s.ym) { s.ymPos = s.ym; return; }
+      if (!conhecidos.length) return;
+      const ant = conhecidos.filter(([j]) => j < i).pop();
+      if (!ant) { s.ymPos = conhecidos[0][1]; return; }
+      let ym = ant[1] % 100 ? ant[1] : ant[1] + 12; // "só o ano" conta como dezembro
+      for (let n = ant[0]; n < i; n++) ym = ym % 100 === 12 ? ym + 89 : ym + 1;
+      s.ymPos = ym;
+    });
+    todas.forEach((s, i) => { s.fal = resumoCol.falta ? resumoCol.falta[i] : null; matrix.cols[i].ymPos = s.ymPos; });
+    const series = todas.filter(s => s.bm !== 0 || s.med || s.fat || s.rec); // Downpayment é adiantamento: só entra se a fórmula do resumo o somar.
 
     // Previsões de medição: linha "Previsão medição" da matriz, ou BM com comentário "previsto/previsão"
     // que ainda não foi faturado nem recebido.
@@ -1234,9 +1288,44 @@ const MODEL = (() => {
       nome: sheet.name, share, refMes, contrato, previsao,
       medido: pick('medido'), faturado: pick('faturado'), recebido: pick('recebido'),
       falta: pick('falta') ?? (pick('medido') != null && pick('recebido') != null ? pick('medido') - pick('recebido') : null),
-      medicoes, matrix: { cols: matrix.cols, rows: Object.fromEntries(Object.entries(matrix.rows).map(([k, v]) => [k, { label: v.label, values: v.values }])) },
+      medicoes, matrix: { cols: matrix.cols, rows: Object.fromEntries(Object.entries(matrix.rows).map(([k, v]) => [k, { label: v.label, values: v.values, linha: v.linha }])) },
+      resumoCol, formulaResumo, linhasResumo: Object.fromEntries(Object.entries(T).map(([k, b]) => [k, b.linha])),
       series, previsoes, alerts
     };
+  }
+
+  // Separa uma fórmula do resumo (ex.: =SUM(C11:V11)+SUM(C10:V10)-B20) em valores por coluna da planilha.
+  // Aceita SUM de intervalos, células soltas e referências a outras células do resumo já separadas.
+  // Retorna { coluna: valor } ou null se a fórmula tiver algo diferente disso.
+  function decompor(f, at, vetores) {
+    if (typeof f !== 'string') return null;
+    const corpo = f.replace(/^=/, '').replace(/\$/g, '').replace(/\s/g, '').toUpperCase();
+    const termos = corpo.match(/[+-]?(?:SUM\([^)]*\)|[A-Z]+\d+)/g);
+    if (!termos || termos.join('') !== corpo) return null;
+    const colN = s => [...s].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+    const out = {};
+    const add = (c, v) => { out[c] = (out[c] || 0) + v; };
+    for (let t of termos) {
+      const sg = t[0] === '-' ? -1 : 1;
+      t = t.replace(/^[+-]/, '');
+      const s = /^SUM\((.*)\)$/.exec(t);
+      if (s) {
+        for (const rg of s[1].split(/[,;]/)) {
+          const q = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(rg);
+          if (!q) return null;
+          const c1 = colN(q[1]), r1 = +q[2], c2 = q[3] ? colN(q[3]) : c1, r2 = q[4] ? +q[4] : r1;
+          for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++)
+            for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) { const v = at(r, c); if (isNum(v)) add(c, sg * v); }
+        }
+      } else if (vetores[t]) {
+        for (const [c, v] of Object.entries(vetores[t])) add(+c, sg * v);
+      } else {
+        const q = /^([A-Z]+)(\d+)$/.exec(t);
+        const v = at(+q[2], colN(q[1]));
+        if (isNum(v)) add(colN(q[1]), sg * v);
+      }
+    }
+    return out;
   }
 
   function fmtBRL(v) {
@@ -1656,6 +1745,7 @@ const CHARTS = (() => {
 const STORE_KEY = 'cosampa-faturamento-v1';
 const UI_KEY = 'cosampa-faturamento-ui-v1';
 const TEMA_KEY = 'cosampa-tema';
+const SOMA_LINHA_KEY = 'cosampa-matriz-soma-linha'; // '1' = mostra a soma simples das linhas da matriz
 const VISTOS_KEY = 'cosampa-avisos-vistos';
 const FONTE_KEY = 'cosampa-fonte-url';
 // Planilha publicada no Google Planilhas ("Publicar na Web"). Pode ser trocada em Configurações.
@@ -1777,24 +1867,30 @@ function fonteTexto() {
 function numeros(o, modo) {
   const k = modo === 'cosampa' ? (o.share ?? 0) : 1;
   const contrato = (o.contrato || 0) * k, medido = (o.medido || 0) * k, faturado = (o.faturado || 0) * k, recebido = (o.recebido || 0) * k;
-  return { contrato, medido, faturado, recebido, aReceber: medido - recebido, aMedir: contrato - medido };
+  const aReceber = o.falta != null ? o.falta * k : medido - recebido; // "Falta receber" da aba (CCAC: medido − faturado)
+  return { contrato, medido, faturado, recebido, aReceber, aMedir: contrato - medido };
 }
 // ---------- Posição até um mês (filtro de período da visão geral) ----------
 // Lançamentos só com o ano (ex.: "2024") contam como dezembro daquele ano.
 const ymFim = ym => (ym % 100 ? ym : ym + 12);
 const mesLabel = ym => `${MODEL.MES_NOME[ym % 100]}/${Math.floor(ym / 100)}`;
-function mesesDisponiveis() {
+const ymDe = x => x.ymPos || x.ym; // mês da posição (BM sem data herda do vizinho; ver model.js)
+const ateMes = (x, ate) => !!ymDe(x) && ymFim(ymDe(x)) <= ate;
+function mesesDisponiveis(obras = data.obras) {
   const s = new Set();
-  for (const o of data.obras) for (const x of o.series) if (x.ym && (x.med || x.fat || x.rec)) s.add(ymFim(x.ym));
+  for (const o of obras) for (const x of o.series) if (ymDe(x) && (x.med || x.fat || x.rec)) s.add(ymFim(ymDe(x)));
   return [...s].sort((a, b) => b - a);
 }
-// Sem mês: usa o resumo REALIZADO/SALDO da aba. Com mês: soma a matriz por BM até aquele mês.
+// Sem mês: usa o resumo REALIZADO/SALDO da aba. Com mês: soma, até aquele mês, quanto cada BM entra
+// nas fórmulas do resumo (a mesma regra da aba, lida pelo model.js).
 function numerosAte(o, modo, ate) {
   if (!ate) return numeros(o, modo);
   const k = modo === 'cosampa' ? (o.share ?? 0) : 1;
-  const soma = key => o.series.reduce((a, x) => a + (x.ym && ymFim(x.ym) <= ate ? (x[key] || 0) : 0), 0);
+  const soma = key => o.series.reduce((a, x) => a + (ateMes(x, ate) ? (x[key] || 0) : 0), 0);
   const contrato = (o.contrato || 0) * k, medido = soma('med') * k, faturado = soma('fat') * k, recebido = soma('rec') * k;
-  return { contrato, medido, faturado, recebido, aReceber: medido - recebido, aMedir: contrato - medido };
+  // Recebido a mais (ajuste só no recebimento) não vira "a receber" negativo: fica zero até o próximo BM.
+  const aReceber = Math.max(0, o.resumoCol && o.resumoCol.falta ? soma('fal') * k : medido - recebido);
+  return { contrato, medido, faturado, recebido, aReceber, aMedir: contrato - medido };
 }
 function somar(obras, modo, ate) {
   const t = { contrato: 0, medido: 0, faturado: 0, recebido: 0, aReceber: 0, aMedir: 0 };
@@ -1880,7 +1976,7 @@ function renderGeral(root, opts = {}) {
     ? `Valores × participação COSAMPA.${fora.length ? ' Fora do total (sem % na planilha): ' + fora.join(', ') + '.' : ''}`
     : 'Valores do contrato inteiro (100%).'];
   notas.push(ate
-    ? `Posição até ${mesLabel(ate)}: soma da matriz por BM até esse mês (pode diferir um pouco do resumo da aba).`
+    ? `Posição até ${mesLabel(ate)}: fórmulas do resumo de cada aba, somando só os BMs até esse mês.`
     : 'Posição atual, conforme o resumo REALIZADO/SALDO de cada aba.');
   R(root, 'nota').textContent = notas.join(' ');
   R(root, 'notaPrint').textContent = notas.join(' ');
@@ -1987,11 +2083,41 @@ function renderObra(root, idx, opts = {}) {
   // Matriz
   const ordem =['previsao', 'medido', 'reajuste', 'aditivo', 'fd', 'desconto', 'faturado', 'reajFat', 'recebido', 'reajRec'];
   const fmt = v => (v == null ? '' : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const ncol = o.matrix.cols.length;
+  // Coluna Total: sempre com os totais do Resumo de faturamento. Nas linhas da planilha fica vazia, a menos
+  // que a soma simples seja ligada em Configurações (ela não segue a fórmula do resumo; ex.: inclui o downpayment).
+  const somaLinha = loadTxt(SOMA_LINHA_KEY) === '1';
   let html = '<thead><tr><th>Linha</th>' + o.matrix.cols.map(c => `<th class="n">${esc(c.label)}</th>`).join('') + '<th class="n">Total</th></tr></thead><tbody>';
   for (const k of ordem) {
     const r = o.matrix.rows[k]; if (!r) continue;
     const tot = r.values.reduce((a, v) => a + (v || 0), 0);
-    html += `<tr><td>${esc(r.label)}</td>` + r.values.map(v => `<td class="n">${fmt(v)}</td>`).join('') + `<td class="n"><b>${fmt(tot)}</b></td></tr>`;
+    html += `<tr><td>${esc(r.label)}</td>` + r.values.map(v => `<td class="n">${fmt(v)}</td>`).join('') +
+      (somaLinha ? `<td class="n soma-linha" title="Soma simples da linha (não é o resumo da aba)">${fmt(tot)}</td>` : '<td></td>') + '</tr>';
+  }
+  // Resumo REALIZADO: cada coluna mostra quanto ela entra na fórmula da aba. Sem mês, o total é o valor do
+  // resumo; com mês (mesma "Posição" da visão geral), soma só os BMs até aquele mês, pela mesma fórmula.
+  const rc = o.resumoCol || {}, fr = o.formulaResumo || {}, lr = o.linhasResumo || {};
+  const meses = mesesDisponiveis([o]);
+  const mesSel = opts.print || !Object.keys(rc).length ? 0 : (meses.includes(+ui.ate) ? +ui.ate : 0);
+  const sel = R(root, 'ateMatriz');
+  sel.innerHTML = `<option value="">Atual${o.refMes ? ' (até BM de ' + esc(o.refMes) + ')' : ''}</option>` + meses.map(m => `<option value="${m}"${m === mesSel ? ' selected' : ''}>até ${mesLabel(m)}</option>`).join('');
+  sel.classList.toggle('ativo', !!mesSel);
+  sel.disabled = !Object.keys(rc).length;
+  const ate = mesSel ? ` até ${mesLabel(mesSel)}` : o.refMes ? ` até BM de ${o.refMes}` : '';
+  const entra = o.matrix.cols.map(c => !mesSel || ateMes(c, mesSel));
+  const linhasRes = [['medido', 'Medido'], ['faturado', 'Faturado'], ['recebido', 'Recebido'], ['falta', 'Falta receber']]
+    .filter(([k]) => o[k] != null && (!mesSel || rc[k]));
+  if (linhasRes.length) {
+    html += `</tbody><tbody class="resumo"><tr class="sec"><td colspan="${ncol + 2}"><span>Resumo de faturamento</span></td></tr>`;
+    for (const [k, nome] of linhasRes) {
+      const dica = fr[k] ? `B${lr[k]} ${fr[k]}` : 'Valor do resumo da aba';
+      const vals = rc[k] || Array(ncol).fill(null);
+      let tot = mesSel ? vals.reduce((a, v, i) => a + (entra[i] ? v || 0 : 0), 0) : o[k];
+      // Recebido maior que o medido até o mês (ajuste lançado só no recebimento): nada falta receber;
+      // a sobra fica como crédito e é abatida do próximo BM, como no resumo atual da aba.
+      if (k === 'falta' && mesSel && tot < 0) tot = 0;
+      html += `<tr title="${esc(dica)}"><td>${nome}${esc(ate)}</td>` + vals.map((v, i) => `<td class="n${entra[i] ? '' : ' fora'}">${fmt(v)}</td>`).join('') + `<td class="n"><b>${fmt(tot)}</b></td></tr>`;
+    }
   }
   R(root, 'matriz').innerHTML = html + '</tbody>';
 }
@@ -2160,6 +2286,7 @@ function sinalAvisos() {
 }
 function renderConfig() {
   document.querySelectorAll('#temaSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tema === temaAtual())));
+  $('#cfgSomaLinha').checked = loadTxt(SOMA_LINHA_KEY) === '1';
   const nL = data.obras.reduce((n, o) => n + o.medicoes.length, 0);
   $('#cfgPlanilha').innerHTML = `Origem: <b>${esc(data.arquivo)}</b>${data.origem === 'link' ? ' (link publicado)' : ''}<br>Lida em ${dataHora(data.importadoEm)}<br>${data.obras.length} obras · ${nL} lançamentos · cópia guardada neste aparelho.`;
   if (document.activeElement !== $('#fonteUrl')) $('#fonteUrl').value = fonteSalva();
@@ -2406,6 +2533,7 @@ function init() {
   $('#tab-obra').addEventListener('click', e => { const b = e.target.closest('[data-r="chips"] button'); if (b) navegar({ tab: 'obra', obra: +b.dataset.obra }, { substituir: true }); });
   $('#temaSeg').addEventListener('click', e => { const b = e.target.closest('button[data-tema]'); if (b) definirTema(b.dataset.tema); });
   $('#temaBtn').addEventListener('click', () => definirTema(temaAtual() === 'dark' ? 'light' : 'dark'));
+  $('#cfgSomaLinha').addEventListener('change', e => store(SOMA_LINHA_KEY, e.target.checked ? '1' : '0'));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 
   // Filtros: atualizam o endereço sem criar um passo novo no Voltar
@@ -2422,6 +2550,10 @@ function init() {
   $('#apagar').addEventListener('click', apagarDados);
   $('#tab-geral').addEventListener('change', e => {
     if (e.target.matches('[data-r="ate"]')) navegar({ tab: 'geral', ate: e.target.value }, { substituir: true });
+  });
+  // Mesmo mês da "Posição" da visão geral: vale para o resumo da matriz de qualquer obra.
+  $('#tab-obra').addEventListener('change', e => {
+    if (e.target.matches('[data-r="ateMatriz"]')) { ui.ate = e.target.value; store(UI_KEY, ui); render(); }
   });
 
   // Busca rápida
