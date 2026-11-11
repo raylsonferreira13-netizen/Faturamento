@@ -1,5 +1,5 @@
 // Cache do app para funcionar offline. Os dados importados ficam no armazenamento do navegador.
-const CACHE = 'faturamento-google-v2';
+const CACHE = 'faturamento-google-v3';
 const FILES = ['./', 'index.html', 'styles.css', 'config.js', 'xlsx.js', 'model.js', 'charts.js', 'app.js',
   'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'logo-cosampa.png'];
 

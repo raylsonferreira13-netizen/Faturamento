@@ -251,14 +251,15 @@
             <form class="usu-form" id="usuForm" autocomplete="off">
               <h4 id="usuFormTit">Novo usuário</h4>
               <label class="campo">Nome do gestor <input id="novoNome" placeholder="ex.: João Silva" required></label>
-              <label class="campo">E-mail <input id="novoEmail" type="email" placeholder="ex.: joao.silva@cosampa.com.br" autocapitalize="none" required></label>
+              <label class="campo">E-mail (usado no "Esqueci minha senha") <input id="novoEmail" type="email" placeholder="ex.: joao.silva@cosampa.com.br" autocapitalize="none"></label>
               <label class="campo">Usuário (para entrar) <input id="novoUsuario" placeholder="ex.: joao.silva" autocapitalize="none" required></label>
               <fieldset><legend>O que ele pode ver</legend>
                 <label class="chk"><input type="checkbox" id="novoAdmin"> Administrador (todas as obras e configurações)</label>
                 <div class="chk-grade" id="novoObras"></div>
               </fieldset>
               <fieldset><legend>Senha</legend>
-                <label class="chk"><input type="radio" name="modoSenha" value="convite" checked> <span id="rotConvite">Enviar convite por e-mail para ele criar a senha</span></label>
+                <label class="chk"><input type="radio" name="modoSenha" value="link" checked> <span id="rotLink">Gerar link de convite para eu enviar (WhatsApp, Teams…)</span></label>
+                <label class="chk"><input type="radio" name="modoSenha" value="convite"> <span id="rotConvite">Enviar convite por e-mail para ele criar a senha</span></label>
                 <label class="chk"><input type="radio" name="modoSenha" value="provisoria"> Definir senha provisória (ele troca no 1º acesso)</label>
                 <label class="chk" id="optManter" hidden><input type="radio" name="modoSenha" value="manter"> Não mexer na senha</label>
                 <label class="campo" id="campoProvisoria" hidden>Senha provisória (mínimo 6 caracteres) <input id="novaSenha" type="password" autocomplete="new-password"></label>
@@ -299,6 +300,21 @@
 <div id="relatorio" class="relatorio" hidden></div>
 <div id="tip" class="tip" role="tooltip" hidden></div>
 <div id="toast" class="toast" hidden></div>
+
+<dialog class="dlg" id="linkDlg" aria-labelledby="linkTit">
+  <form method="dialog">
+    <h3 id="linkTit">Link de convite</h3>
+    <p class="muted" id="linkInfo"></p>
+    <textarea id="linkMsg" rows="9" readonly></textarea>
+    <p class="muted small">Envie só para a própria pessoa: quem abrir o link primeiro cria a senha. Se vencer, gere outro na lista de usuários.</p>
+    <div class="dlg-acoes">
+      <button type="button" class="btn" id="linkSoLink">Copiar só o link</button>
+      <span class="espaco"></span>
+      <button class="btn" value="fechar">Fechar</button>
+      <button type="button" class="btn primary" id="linkCopiar">Copiar mensagem</button>
+    </div>
+  </form>
+</dialog>
 
 <section class="login" id="login" hidden>
   <form class="login-caixa" id="loginForm" autocomplete="on">

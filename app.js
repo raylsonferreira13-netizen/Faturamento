@@ -266,7 +266,7 @@ function renderUsuarios() {
   $('#usuLista').innerHTML = usuariosSrv.length ? usuariosSrv.map(u => `<div class="usu-item${u.ativo ? '' : ' inativo'}">
       <span class="usu-info"><b>${esc(u.nome)}</b><small>${esc(u.usuario)} · ${esc(u.email || 'sem e-mail')} · ${u.perfil === 'admin' ? 'administrador (todas as obras)' : esc(u.obras.join(', '))}</small>
         <small>${u.ativo ? '' : '<em>bloqueado</em> · '}${u.temSenha ? (u.trocar ? 'senha provisória' : 'senha criada') : '<em>aguardando criar a senha</em>'} · ${quando(u.ultimoAcesso)}</small></span>
-      <span class="usu-acoes"><button class="btn" type="button" data-editar="${esc(u.usuario)}">Alterar</button>${u.email ? `<button class="btn" type="button" data-link="${esc(u.usuario)}">Enviar link de senha</button>` : ''}${u.usuario === usuario.usuario ? '' : `<button class="btn perigo" type="button" data-remover="${esc(u.usuario)}">Remover</button>`}</span>
+      <span class="usu-acoes"><button class="btn" type="button" data-editar="${esc(u.usuario)}">Alterar</button>${u.ativo ? `<button class="btn" type="button" data-convite="${esc(u.usuario)}">Copiar link de convite</button>` : ''}${u.email ? `<button class="btn" type="button" data-link="${esc(u.usuario)}">Enviar link por e-mail</button>` : ''}${u.usuario === usuario.usuario ? '' : `<button class="btn perigo" type="button" data-remover="${esc(u.usuario)}">Remover</button>`}</span>
     </div>`).join('') : '<p class="muted small">Nenhum usuário.</p>';
   const nomes = dataCompleta ? dataCompleta.obras.map(o => o.nome) : [];
   const grade = $('#novoObras');
@@ -286,6 +286,7 @@ function limparFormUsuario() {
   $('#usuFormTit').textContent = 'Novo usuário';
   $('#usuSalvar').textContent = 'Adicionar usuário';
   $('#rotConvite').textContent = 'Enviar convite por e-mail para ele criar a senha';
+  $('#rotLink').textContent = 'Gerar link de convite para eu enviar (WhatsApp, Teams…)';
   $('#usuCancelar').hidden = $('#optManter').hidden = $('#optAtivo').hidden = true;
   $('#usuErro').hidden = true;
   renderUsuarios();
@@ -303,6 +304,7 @@ function editarUsuario(nome) {
   $('#optManter').hidden = $('#optAtivo').hidden = false;
   $('#optManter').querySelector('input').checked = true;
   $('#rotConvite').textContent = 'Enviar e-mail com link para ele criar uma nova senha';
+  $('#rotLink').textContent = 'Gerar link para ele criar uma nova senha (eu envio por WhatsApp, Teams…)';
   $('#usuFormTit').textContent = `Alterar ${u.nome}`;
   $('#usuSalvar').textContent = 'Salvar alterações';
   $('#usuCancelar').hidden = false;
@@ -322,9 +324,11 @@ async function salvarUsuario(e) {
     obras: [...$('#novoObras').querySelectorAll('input:checked')].map(c => c.value),
     ativo: editando ? $('#novoAtivo').checked : true,
     enviarConvite: modo === 'convite',
+    gerarLink: modo === 'link',
     senhaProvisoria: modo === 'provisoria' ? $('#novaSenha').value : undefined
   };
   if (modo === 'provisoria' && dados.senhaProvisoria.length < 6) return erroEm('#usuErro', 'A senha provisória precisa ter pelo menos 6 caracteres.');
+  if (modo === 'convite' && !dados.email) return erroEm('#usuErro', 'Para enviar o convite por e-mail, preencha o e-mail. Ou escolha "Gerar link de convite".');
   if (dados.perfil !== 'admin' && !dados.obras.length) return erroEm('#usuErro', 'Marque pelo menos uma obra, ou Administrador.');
   await comBotao($('#usuForm'), async () => {
     try {
@@ -332,8 +336,31 @@ async function salvarUsuario(e) {
       toast(j.mensagem);
       limparFormUsuario();
       carregarUsuarios(true);
+      if (j.link) mostrarLinkConvite(j);
     } catch (err) { if (err.sessao) sessaoTerminou(err.message); else erroEm('#usuErro', err.message); }
   });
+}
+// Link de convite para o admin mandar por WhatsApp/Teams: mensagem pronta para copiar
+function mostrarLinkConvite(j) {
+  const u = j.usuario, nome = u.nome.trim().split(/\s+/)[0];
+  const app = location.origin + location.pathname;
+  $('#linkTit').textContent = `Link de convite: ${u.nome}`;
+  $('#linkInfo').textContent = `Vale por ${j.prazo} e só pode ser usado uma vez. Copie e envie para ${nome}.`;
+  $('#linkMsg').value = `Olá, ${nome}! Seu acesso ao Controle de Faturamento COSAMPA está pronto.\n\n` +
+    `1. Abra este link (vale por ${j.prazo}) e crie a sua senha:\n${j.link}\n\n` +
+    `2. Depois, para entrar, use o endereço ${app}\nUsuário: ${u.usuario}`;
+  $('#linkMsg').dataset.link = j.link;
+  $('#linkDlg').showModal();
+}
+async function copiarTexto(txt, msg) {
+  try { await navigator.clipboard.writeText(txt); toast(msg); }
+  catch (e) { $('#linkMsg').select(); toast('Selecionei o texto: aperte Ctrl + C para copiar.'); }
+}
+async function linkConvite(nome) {
+  const u = usuariosSrv.find(x => x.usuario === nome); if (!u) return;
+  if (u.temSenha && !u.trocar && !confirm(`${u.nome} já criou a senha. Gerar um link para ele criar uma NOVA senha?`)) return;
+  try { mostrarLinkConvite(await api('linkConvite', { usuario: u.usuario })); }
+  catch (err) { if (err.sessao) sessaoTerminou(err.message); else toast(err.message); }
 }
 async function acaoUsuario(acao, nome) {
   const u = usuariosSrv.find(x => x.usuario === nome); if (!u) return;
@@ -1226,10 +1253,13 @@ function init() {
   $('#usuForm').addEventListener('submit', salvarUsuario);
   $('#usuForm').addEventListener('change', e => { if (e.target.name === 'modoSenha' || e.target.id === 'novoAdmin') renderUsuarios(); });
   $('#usuCancelar').addEventListener('click', limparFormUsuario);
+  $('#linkCopiar').addEventListener('click', () => copiarTexto($('#linkMsg').value, 'Mensagem copiada. Cole no WhatsApp ou no Teams.'));
+  $('#linkSoLink').addEventListener('click', () => copiarTexto($('#linkMsg').dataset.link, 'Link copiado.'));
   $('#usuLista').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.editar) editarUsuario(b.dataset.editar);
     if (b.dataset.link) acaoUsuario('enviarLink', b.dataset.link);
+    if (b.dataset.convite) linkConvite(b.dataset.convite);
     if (b.dataset.remover) acaoUsuario('removerUsuario', b.dataset.remover);
   });
   // Usuário sugerido a partir do nome (ex.: "João Silva" → joao.silva), até a pessoa digitar outro

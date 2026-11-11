@@ -530,3 +530,4 @@ body:not(.perfil-usuario) .so-usuario { display: none !important; }
 .login-ok { color: var(--good); font-size: 13px; font-weight: 600; }
 .usu-item.inativo .usu-info b { text-decoration: line-through; opacity: .6; }
 .btn[aria-busy="true"] { opacity: .6; cursor: progress; }
+.dlg textarea { font: 13px/1.45 inherit; font-family: inherit; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); resize: vertical; margin: 8px 0; }
