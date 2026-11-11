@@ -1264,20 +1264,8 @@ const MODEL = (() => {
     const naTabela = new Set(medicoes.flatMap(m => m.bms));
     const faltando = series.filter(s => s.med && s.bm != null && !naTabela.has(s.bm)).map(s => s.label);
     if (faltando.length) alerts.push({ nivel: 'aviso', texto: `BM com valor medido na matriz, mas ausente da tabela de medições: ${faltando.join(', ')}.` });
-    // Recebido maior que faturado no mesmo BM (o resumo da aba passa a mostrar mais recebido que faturado)
-    for (const [kf, kr] of [['faturado', 'recebido'], ['reajFat', 'reajRec']]) {
-      const lf = matrix.rows[kf], lr = matrix.rows[kr];
-      if (!lf || !lr) continue;
-      matrix.cols.forEach((c, i) => {
-        const f = num(lf.values[i]), rc = num(lr.values[i]);
-        // Downpayment só tem "recebido", é normal. Nos demais pode ser ajuste intencional
-        // (ex.: valor recebido num BM e retirado do medido do mês seguinte), por isso é só informativo.
-        if (c.bm !== 0 && rc - f > 1) {
-          const L = letra(cols[i]);
-          alerts.push({ nivel: 'info', texto: `${c.label}: recebido ${fmtBRL(rc - f)} maior que o faturado (${L}${lr.linha} = ${fmtBRL(rc)}; ${L}${lf.linha} = ${fmtBRL(f)}). Se for ajuste lançado só no recebimento, está correto; no app, o "faturado a receber" fica em zero em vez de negativo.` });
-        }
-      });
-    }
+    // Recebido maior que faturado no mesmo BM (ex.: Seriemas BM 18) é ajuste intencional lançado só no
+    // recebimento: não gera aviso. No app, o "faturado a receber" fica em zero em vez de negativo.
     if (share == null) alerts.push({ nivel: 'info', texto: 'A aba não informa o percentual de participação da COSAMPA; a obra fica fora do total "Parte COSAMPA".' });
     if (contratoInformado != null && contrato != null && Math.abs(contratoInformado - contrato) > 1) {
       alerts.push({ nivel: 'info', texto: `Valor do contrato usado no saldo (${fmtBRL(contrato)}) difere do primeiro "Valor do Contrato" da aba (${fmtBRL(contratoInformado)}).` });
