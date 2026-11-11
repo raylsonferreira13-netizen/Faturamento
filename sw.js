@@ -1,7 +1,7 @@
 // Cache do app para funcionar offline. Os dados importados ficam no armazenamento do navegador.
-const CACHE = 'faturamento-google-v1';
+const CACHE = 'faturamento-google-v2';
 const FILES = ['./', 'index.html', 'styles.css', 'config.js', 'xlsx.js', 'model.js', 'charts.js', 'app.js',
-  'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo-cosampa.png'];
+  'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'logo-cosampa.png'];
 
 self.addEventListener('install', e => {
   // Se o cache falhar (disco cheio, modo privado), o app continua funcionando online.
